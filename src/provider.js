@@ -2,13 +2,25 @@
 // background page.
 
 Mc.provider.onSync.addListener(async (cal) => {
-  let ab; // the (complete) address book associated with the calendar
-  try {
-    ab = await Mab.get(BC.getAddressBookIdFromCalendarURL(cal.url), true);
-  } catch (e) {
-    // Automatically remove calendars whose address books were deleted
-    await Mc.calendars.remove(cal.id);
-    throw e;
+  let ab = null; // the (complete) address book associated with the calendar
+  let errorCount = 0;
+  while (!ab) {
+    try {
+      ab = await Mab.get(BC.getAddressBookIdFromCalendarURL(cal.url), true);
+    } catch (e) {
+      // Retry for up to 60 seconds, if the address book is not ready yet.
+      if (++errorCount <= 60) {
+        console.warn("Cannot access address book for " + cal.url
+            + ", retrying in 1000ms", e);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+      // If that does not help, remove the calendar and log the error.
+      console.error("Fatal: Cannot access address book for " + cal.url
+            + ", giving up and removing the calendar", e);
+      await Mc.calendars.remove(cal.id);
+      throw e;
+    }
   }
 
   await Mc.calendars.clear(cal.cacheId);
