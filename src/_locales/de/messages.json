@@ -1,14 +1,14 @@
 {
   "extensionName": {
-    "message": "Birthday Calendar",
+    "message": "Geburtstagskalender",
     "description": "Main add-on title"
   },
   "extensionDescription": {
-    "message": "Adds calendars containing the birthdays from your address books.",
+    "message": "Fügt Kalender zu Thunderbird hinzu, die die Geburtstage aus dem Adressbuch enthalten.",
     "description": "Main add-on description"
   },
   "defaultCalendarName": {
-    "message": "Birthdays in $addressbook$",
+    "message": "Geburtstage in $addressbook$",
     "description": "Default name for birthday calendars",
     "placeholders": {
       "addressbook": {
@@ -18,7 +18,7 @@
     }
   },
   "addressBookSelection": {
-    "message": "Select address books to display birthday calendars for:",
+    "message": "Adressbücher auswählen, für die Geburtstagskalender angezeigt werden sollen:",
     "description": "Label above the list of address books in the preferences"
   }
 }
