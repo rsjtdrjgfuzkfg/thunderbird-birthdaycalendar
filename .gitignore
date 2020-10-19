@@ -1,0 +1,8 @@
+# Ignore built files
+/dist
+
+# Hidden files should never be relevant within a project, and are commonly used
+# for local and temporary files.
+.*
+# ... except for these special cases:
+!.gitignore

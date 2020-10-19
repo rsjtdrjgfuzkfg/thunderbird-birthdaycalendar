@@ -1,0 +1,94 @@
+{
+  "manifest_version": 2,
+  "applications": {
+    "gecko": {
+      "id": "birthdaycalendar@rsjtdrjgfuzkfg.com",
+      "strict_min_version": "78.2.0",
+      "strict_max_version": "78.*"
+    }
+  },
+  "name": "__MSG_extensionName__",
+  "description": "__MSG_extensionDescription__",
+  "version": "0.1",
+  "icons": {
+    "64": "icon.png"
+  },
+  "permissions": [
+    "storage", "unlimitedStorage", "addressBooks"
+  ],
+  "default_locale": "en",
+
+  "calendar_provider": {
+    "capabilities": {
+      "timezones": {
+        "floating": true,
+        "UTC": false
+      },
+      "attachments": false,
+      "priority": false,
+      "privacy": false,
+      "alarms": {
+        "count": 0
+      },
+      "tasks": false,
+      "events": true,
+      "requires_network": false,
+      "mutable": false
+    }
+  },
+
+  "background": {
+    "scripts": [
+      "common.js",
+      "provider.js",
+      "background.js"
+    ]
+  },
+
+  "options_ui": {
+    "page": "options.html"
+  },
+
+  "experiment_apis": {
+    "calendar_calendars": {
+      "schema": "experiments/calendar/schema/calendar-calendars.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "script": "experiments/calendar/parent/ext-calendar-calendars.js",
+        "paths": [
+          ["calendar", "calendars"]
+        ]
+      }
+    },
+    "calendar_items": {
+      "schema": "experiments/calendar/schema/calendar-items.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "script": "experiments/calendar/parent/ext-calendar-items.js",
+        "paths": [
+          ["calendar", "items"]
+        ]
+      }
+    },
+    "calendar_provider": {
+      "schema": "experiments/calendar/schema/calendar-provider.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "script": "experiments/calendar/parent/ext-calendar-provider.js",
+        "events": ["startup"],
+        "paths": [
+          ["calendar", "provider"]
+        ]
+      }
+    },
+    "ex_cachingfix": {
+      "schema": "experiments/cachingfix/api.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["ex_cachingfix"]],
+        "script": "experiments/cachingfix/parent.js",
+        "events": ["startup"]
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+This WebExtension Experiment is based on the draft for the Calendar API
+created by @kewisch, avaialble at
+https://github.com/thundernest/tb-web-ext-experiments/tree/master/calendar
+
+Changes:
+- do not use resource://-URI schema to prevent collisions with other add-ons
+  using different versions of the same API.
+- add calISchedulingSupport to provided calendars to fix display issues
+- add support for 'mutable' capability, permitting to provide read-only
+  calendars (forces readOnly property to be true)
+- altered calendars.query to compare URIs directly instead of using
+  the undefined (?) function parseMatchPatterns, as the obvious replacement
+  (new MatchPatternSet) is not properly working with non-web schemas.

@@ -1,0 +1,24 @@
+{
+  "extensionName": {
+    "message": "Birthday Calendar",
+    "description": "Main add-on title"
+  },
+  "extensionDescription": {
+    "message": "Adds calendars containing the birthdays from your address books",
+    "description": "Main add-on description"
+  },
+  "defaultCalendarName": {
+    "message": "Birthdays in $addressbook$",
+    "description": "Default name for birthday calendars",
+    "placeholders": {
+      "addressbook": {
+        "content": "$1",
+        "example": "Personal Address Book"
+      }
+    }
+  },
+  "addressBookSelection": {
+    "message": "Select address books to display birthday calendars for:",
+    "description": "Label above the list of address books in the preferences"
+  }
+}
