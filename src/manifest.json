@@ -32,7 +32,7 @@
       },
       "tasks": false,
       "events": true,
-      "requires_network": false,
+      "requires_network": true,
       "mutable": false
     }
   },
