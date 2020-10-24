@@ -11,7 +11,7 @@
   "description": "__MSG_extensionDescription__",
   "version": "__BUILD_version__",
   "icons": {
-    "64": "icon.png"
+    "64": "icon.svg"
   },
   "permissions": [
     "storage", "unlimitedStorage", "addressBooks"
