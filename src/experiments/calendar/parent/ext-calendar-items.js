@@ -20,8 +20,7 @@ this.calendar_items = class extends ExtensionAPI {
       propsToItem,
       convertItem,
       convertAlarm,
-    } = ChromeUtils.import(this.extension.rootURI.resolve(
-        "experiments/calendar/ext-calendar-utils.jsm"));
+    } = ChromeUtils.import(this.extension.rootURI.resolve("experiments/calendar/ext-calendar-utils.jsm"));
 
     return {
       calendar: {

@@ -1,6 +1,0 @@
-[
-  {
-    "namespace": "ex_cachingfix",
-    "description": "This experiment automatically unloads all other experiment's JSMs and clears caches to enable correct update behavior. It does not need to get called in any way, just including it is sufficient."
-  }
-]

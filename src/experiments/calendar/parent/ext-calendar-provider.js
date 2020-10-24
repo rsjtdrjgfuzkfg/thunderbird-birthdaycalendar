@@ -66,7 +66,7 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
     if (name === "readOnly" && this.capabilities.mutable === false) {
       return; // prevent change
     }
-    return super.setProperty(name, value);
+    super.setProperty(name, value);
   }
 
   getProperty(name) {
@@ -268,6 +268,9 @@ this.calendar_provider = class extends ExtensionAPI {
     if (isAppShutdown) {
       return;
     }
+
+    Cu.unload(this.extension.rootURI.resolve("experiments/calendar/ext-calendar-utils.jsm"));
+    Services.obs.notifyObservers(null, "startupcache-invalidate", null);
   }
 
   onManifestEntry(entryName) {
@@ -303,8 +306,7 @@ this.calendar_provider = class extends ExtensionAPI {
       propsToItem,
       convertItem,
       convertCalendar,
-    } = ChromeUtils.import(this.extension.rootURI.resolve(
-        "experiments/calendar/ext-calendar-utils.jsm"));
+    } = ChromeUtils.import(this.extension.rootURI.resolve("experiments/calendar/ext-calendar-utils.jsm"));
 
     return {
       calendar: {

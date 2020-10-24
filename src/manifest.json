@@ -80,15 +80,6 @@
           ["calendar", "provider"]
         ]
       }
-    },
-    "ex_cachingfix": {
-      "schema": "experiments/cachingfix/api.json",
-      "parent": {
-        "scopes": ["addon_parent"],
-        "paths": [["ex_cachingfix"]],
-        "script": "experiments/cachingfix/parent.js",
-        "events": ["startup"]
-      }
     }
   }
 }

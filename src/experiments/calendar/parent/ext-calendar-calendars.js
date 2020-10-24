@@ -18,14 +18,22 @@ this.calendar_calendars = class extends ExtensionAPI {
       getResolvedCalendarById,
       isOwnCalendar,
       convertCalendar,
-    } = ChromeUtils.import(this.extension.rootURI.resolve(
-        "experiments/calendar/ext-calendar-utils.jsm"));
+    } = ChromeUtils.import(this.extension.rootURI.resolve("experiments/calendar/ext-calendar-utils.jsm"));
 
     return {
       calendar: {
         calendars: {
           query: async function({ type, url, name, color, readOnly, enabled }) {
             let calendars = calmgr.getCalendars();
+
+            let patterns = null;
+            if (url) {
+              try {
+                patterns = new MatchPatternSet([url], { restrictSchemes: false });
+              } catch (e) {
+                throw new ExtensionError(`Invalid url pattern: ${url}`);
+              }
+            }
 
             return calendars
               .filter(calendar => {
@@ -35,7 +43,7 @@ this.calendar_calendars = class extends ExtensionAPI {
                   matches = false;
                 }
 
-                if (url && calendar.uri.spec != url) {
+                if (url && !patterns.matches(calendar.uri)) {
                   matches = false;
                 }
 
