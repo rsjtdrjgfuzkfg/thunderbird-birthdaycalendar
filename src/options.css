@@ -1,5 +1,12 @@
-html, body {
+* {
  font-size: 100%;
+}
+body {
+  display: block;
+}
+hr {
+  border: 0;
+  border-top: 1px solid gray;
 }
 label {
   display: block;

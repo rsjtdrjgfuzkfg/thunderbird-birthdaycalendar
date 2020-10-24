@@ -11,7 +11,7 @@ async function refreshAbList() {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = await BC.hasCalendarForAddressBookId(ab.id);
-    checkbox.addEventListener('click', () => (async () =>{
+    checkbox.addEventListener("click", () => (async () =>{
       if (checkbox.checked) {
         await BC.createCalendarForAddressBook(ab);
       } else {
@@ -26,9 +26,36 @@ async function refreshAbList() {
 }
 
 addEventListener('load', () => (async () => {
-  const label = document.createElement("p");
-  label.textContent = Mi.getMessage("addressBookSelection");
-  document.body.appendChild(label);
+  const separator = '$this string is unlikely to occur in any locale file@';
+  let settings = await BC.getGlobalSettings();
+
+  const ageYearsLabel = document.createElement("label");
+  const ageYearsText = Mi.getMessage("yearsToDisplayAgeForSetting",
+      [separator]).split(separator);
+  ageYearsLabel.appendChild(document.createTextNode(ageYearsText[0]));
+  const ageYearsSpinner = document.createElement("input");
+  ageYearsSpinner.type = "number";
+  ageYearsSpinner.min = 0;
+  ageYearsSpinner.max = 100;
+  ageYearsSpinner.value = settings.yearsToDisplayAgeFor;
+  ageYearsSpinner.addEventListener("change", () => (async () => {
+    const newValue = parseInt(ageYearsSpinner.value);
+    if (!(newValue >= 0) || settings.yearsToDisplayAgeFor === newValue) {
+      return;
+    }
+    settings.yearsToDisplayAgeFor = newValue;
+    await BC.setGlobalSettings(settings);
+    await Mc.calendars.synchronize();
+  })().catch(console.error));
+  ageYearsLabel.appendChild(ageYearsSpinner);
+  ageYearsLabel.appendChild(document.createTextNode(ageYearsText[1]));
+  document.body.appendChild(ageYearsLabel);
+
+  document.body.appendChild(document.createElement("hr"));
+
+  const abListLabel = document.createElement("p");
+  abListLabel.textContent = Mi.getMessage("addressBookSelection");
+  document.body.appendChild(abListLabel);
 
   abList = document.createElement("div");
   document.body.appendChild(abList);

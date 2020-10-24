@@ -57,7 +57,7 @@ const BC = {};
     calendarInfo.color = "#ffff00";
     await Mc.calendars.create(calendarInfo);
     return true;
-  }
+  };
 
   BC.removeCalendarForAddressBookId = async function(addressBookId) {
     const url = BC.getCalendarURLForAddressBookId(addressBookId);
@@ -65,5 +65,17 @@ const BC = {};
     const existingCalendars = await Mc.calendars.query(calendarInfo);
     await Promise.all(existingCalendars.map(c => Mc.calendars.remove(c.id)));
     return existingCalendars.length > 0;
-  }
+  };
+
+
+  // Settings
+  BC.getGlobalSettings = async function() {
+    return await Msl.get({
+      yearsToDisplayAgeFor: 4
+    });
+  };
+
+  BC.setGlobalSettings = async function(settings) {
+    await Msl.set(settings);
+  };
 }

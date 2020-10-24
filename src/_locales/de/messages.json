@@ -18,7 +18,17 @@
     }
   },
   "addressBookSelection": {
-    "message": "Adressbücher auswählen, für die Geburtstagskalender angezeigt werden sollen:",
+    "message": "Adressbücher, für die Geburtstagskalender angezeigt werden sollen:",
     "description": "Label above the list of address books in the preferences"
+  },
+  "yearsToDisplayAgeForSetting": {
+    "message": "Zeitraum, in dem das Alter berechnet wird: $years$ Jahre",
+    "description": "Label for the setting controlling the number of years to generate age information for; the placeholder will be replaced with an editable field.",
+    "placeholders": {
+      "years": {
+        "content": "$1",
+        "example": "4"
+      }
+    }
   }
 }
