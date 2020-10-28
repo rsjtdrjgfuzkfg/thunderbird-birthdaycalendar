@@ -10,7 +10,7 @@ clean:
 clobber: clean
 	rm -Rf dist
 
-SRCFILES = $(shell find src -not -path 'src/manifest.json')
+SRCFILES := $(shell find src -type f -not -path 'src/manifest.json')
 
 build/version.txt: .git/HEAD $(SRCFILES) LICENSE
 	mkdir -p "$(@D)"
@@ -22,7 +22,7 @@ build/manifest.json: src/manifest.json build/version.txt
 dist/birthdaycalendar.xpi: $(SRCFILES) build/manifest.json LICENSE
 	mkdir -p "$(@D)"
 	rm -f "$@"
-	cd src ; zip -r "../$@" *
-	cd build ; zip "../$@" manifest.json
-	zip "$@" LICENSE
+	cd src ; zip -9X "../$@" $(SRCFILES:src/%=%)
+	cd build ; zip -9X "../$@" manifest.json
+	zip -9X "$@" LICENSE
 
