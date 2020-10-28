@@ -12,7 +12,7 @@ clobber: clean
 
 SRCFILES := $(shell find src -type f -not -path 'src/manifest.json')
 
-build/version.txt: .git/HEAD $(SRCFILES) LICENSE
+build/version.txt: .git/index $(SRCFILES) LICENSE
 	mkdir -p "$(@D)"
 	git describe --match='v[0-9]*' --dirty=+ | sed -e 's/^v//g' > "$@"
 
