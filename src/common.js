@@ -29,11 +29,11 @@ const BC = {};
     if (!calendarURL.startsWith(URL_PREFIX)) {
       throw new Error("Invalid URL for birthday calendar: " + calendarURL);
     }
-    return calendarURL.substr(URL_PREFIX.length);
+    return decodeURIComponent(calendarURL.substr(URL_PREFIX.length));
   };
 
   BC.getCalendarURLForAddressBookId = function(addressBookId) {
-    return URL_PREFIX + addressBookId;
+    return URL_PREFIX + encodeURIComponent(addressBookId);
   };
 
 
