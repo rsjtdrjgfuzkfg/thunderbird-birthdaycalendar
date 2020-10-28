@@ -269,6 +269,10 @@ this.calendar_provider = class extends ExtensionAPI {
       return;
     }
 
+    if (this.extension.manifest.calendar_provider) {
+      ExtCalendarProvider.unregister(this.extension);
+    }
+
     Cu.unload(this.extension.rootURI.resolve("experiments/calendar/ext-calendar-utils.jsm"));
     Services.obs.notifyObservers(null, "startupcache-invalidate", null);
   }
@@ -291,14 +295,7 @@ this.calendar_provider = class extends ExtensionAPI {
     // yet.
     this.extension.on("background-page-started", () => {
       ExtCalendarProvider.register(this.extension);
-      this.extension.callOnClose(this);
     });
-  }
-
-  close() {
-    if (this.extension.manifest.calendar_provider) {
-      ExtCalendarProvider.unregister(this.extension);
-    }
   }
 
   getAPI(context) {
