@@ -1,6 +1,6 @@
 # Birthday Calendar Add-on for Thunderbird
 
-.PHONY: clean clobber build/version.txt
+.PHONY: clean clobber
 
 xpi: dist/birthdaycalendar.xpi
 
@@ -12,7 +12,7 @@ clobber: clean
 
 SRCFILES = $(shell find src -not -path 'src/manifest.json')
 
-build/version.txt:
+build/version.txt: .git/HEAD $(SRCFILES) LICENSE
 	mkdir -p "$(@D)"
 	git describe --match='v[0-9]*' --dirty=+ | sed -e 's/^v//g' > "$@"
 
