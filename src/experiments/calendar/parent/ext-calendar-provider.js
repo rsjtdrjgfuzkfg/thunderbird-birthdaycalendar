@@ -9,8 +9,6 @@ var { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
 var { ExtensionAPI, EventManager } = ExtensionCommon;
 
 class ExtCalendarProvider extends cal.provider.BaseClass {
-  QueryInterface = ChromeUtils.generateQI(["calICalendar", "calIChangeLog", "calISchedulingSupport"]);
-
   static register(extension) {
     let calmgr = cal.getCalendarManager();
     let type = "ext-" + extension.id;
@@ -34,6 +32,7 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
 
   constructor() {
     super();
+    this.QueryInterface = ChromeUtils.generateQI(["calICalendar", "calIChangeLog", "calISchedulingSupport"]);
     this.initProviderBase();
   }
 
@@ -41,7 +40,9 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
     return this.extension.id;
   }
 
-  canRefresh = true;
+  get canRefresh() {
+    return true;
+  }
 
   get id() {
     return super.id;
@@ -83,9 +84,9 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
         break;
 
       case "capabilities.timezones.floating.supported":
-        return !(this.capabilities.timezones?.floating === false);
+        return !(this.capabilities.timezones && this.capabilities.timezones.floating === false);
       case "capabilities.timezones.UTC.supported":
-        return !(this.capabilities.timezones?.UTC === false);
+        return !(this.capabilities.timezones && this.capabilities.timezones.UTC === false);
       case "capabilities.attachments.supported":
         return !(this.capabilities.attachments === false);
       case "capabilities.priority.supported":
@@ -94,18 +95,18 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
         return !(this.capabilities.privacy === false);
       case "capabilities.privacy.values":
         return Array.isArray(this.capabilities.privacy)
-          ? this.capabilities.privacy?.map(val => val.toUpperCase())
+          ? this.capabilities.privacy.map(val => val.toUpperCase())
           : ["PUBLIC", "CONFIDENTIAL", "PRIVATE"];
       case "capabilities.categories.maxCount":
-        return Number.isInteger(this.capabilities.categories?.count)
-          ? this.capabilities.categories?.count
+        return this.capabilities.categories && Number.isInteger(this.capabilities.categories.count)
+          ? this.capabilities.categories.count
           : -1;
       case "capabilities.alarms.maxCount":
-        return Number.isInteger(this.capabilities.alarms?.count)
-          ? this.capabilities.alarms?.count
+        return this.capabilities.alarms && Number.isInteger(this.capabilities.alarms.count)
+          ? this.capabilities.alarms.count
           : undefined;
       case "capabilities.alarms.actionValues":
-        return this.capabilities.alarms?.actions?.map(val => val.toUpperCase()) || ["DISPLAY"];
+        return this.capabilities.alarms && this.capabilities.alarms.actions && this.capabilities.alarms.actions.map(val => val.toUpperCase()) || ["DISPLAY"];
       case "capabilities.tasks.supported":
         return !(this.capabilities.tasks === false);
       case "capabilities.events.supported":
@@ -283,7 +284,7 @@ this.calendar_provider = class extends ExtensionAPI {
     }
     let manifest = this.extension.manifest;
 
-    if (!manifest.browser_specific_settings?.gecko?.id && !manifest.applications?.gecko?.id) {
+    if (!(manifest.browser_specific_settings && manifest.browser_specific_settings.gecko && manifest.browser_specific_settings.gecko.id) && !(manifest.applications && manifest.applications.gecko && manifest.applications.gecko.id)) {
       console.warn(
         "Registering a calendar provider with a temporary id. Calendars created for this provider won't persist restarts"
       );

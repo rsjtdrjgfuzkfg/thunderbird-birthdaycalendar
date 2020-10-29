@@ -206,7 +206,7 @@ this.calendar_calendars = class extends ExtensionAPI {
                       fire.sync(converted, { [name]: value });
                       break;
                     case "uri":
-                      fire.sync(converted, { url: value?.spec });
+                      fire.sync(converted, { url: value ? value.spec : undefined });
                       break;
                     case "disabled":
                       fire.sync(converted, { enabled: !value });

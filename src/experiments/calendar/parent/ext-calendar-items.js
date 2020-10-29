@@ -68,7 +68,7 @@ this.calendar_items = class extends ExtensionAPI {
             if (!oldItem) {
               throw new ExtensionError("Could not find item " + id);
             }
-            let newItem = propsToItem(updateProperties, oldItem?.clone());
+            let newItem = propsToItem(updateProperties, oldItem ? oldItem.clone() : undefined);
             newItem.calendar = calendar.superCalendar;
 
             if (updateProperties.metadata && isOwnCalendar(calendar, context.extension)) {
