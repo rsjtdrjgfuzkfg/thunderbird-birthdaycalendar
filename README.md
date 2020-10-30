@@ -1,6 +1,6 @@
 # Birthday Calendar add-on for Thunderbird
 
-An add-on to create Thunderbird calendars that dynamically contain the birthdays stored in address book(s). You can download binary builds [on the releases page of this repository](https://github.com/rsjtdrjgfuzkfg/thunderbird-birthdaycalendar/releases) – but as further testing is required, this add-on is *not yet* available through [addons.thunderbird.net](https://addons.thunderbird.net).
+An add-on to create Thunderbird calendars that dynamically contain the birthdays stored in address book(s). You can [download stable releases through addons.thunderbird.net](https://addons.thunderbird.net/thunderbird/addon/birthday-calendar/). Alternatively, binary builds for named versions are also available [on the releases page of this repository](https://github.com/rsjtdrjgfuzkfg/thunderbird-birthdaycalendar/releases).
 
 
 ## Note for add-on developers
