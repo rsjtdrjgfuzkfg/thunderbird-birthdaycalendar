@@ -15,6 +15,7 @@ this.calendar_calendars = class extends ExtensionAPI {
   getAPI(context) {
     const calmgr = cal.getCalendarManager();
     const {
+      unwrapCalendar,
       getResolvedCalendarById,
       isOwnCalendar,
       convertCalendar,
@@ -26,10 +27,10 @@ this.calendar_calendars = class extends ExtensionAPI {
           query: async function({ type, url, name, color, readOnly, enabled }) {
             let calendars = calmgr.getCalendars();
 
-            let patterns = null;
+            let pattern = null;
             if (url) {
               try {
-                patterns = new MatchPatternSet([url], { restrictSchemes: false });
+                pattern = new MatchPattern(url, { restrictSchemes: false });
               } catch (e) {
                 throw new ExtensionError(`Invalid url pattern: ${url}`);
               }
@@ -43,7 +44,7 @@ this.calendar_calendars = class extends ExtensionAPI {
                   matches = false;
                 }
 
-                if (url && !patterns.matches(calendar.uri)) {
+                if (url && !pattern.matches(calendar.uri)) {
                   matches = false;
                 }
 
@@ -71,7 +72,7 @@ this.calendar_calendars = class extends ExtensionAPI {
           get: async function(id) {
             // TODO find a better way to determine cache id
             if (id.endsWith("#cache")) {
-              let calendar = calmgr.getCalendarById(id.substring(0, id.length - 6));
+              let calendar = unwrapCalendar(calmgr.getCalendarById(id.substring(0, id.length - 6)));
               let own = calendar.offlineStorage && isOwnCalendar(calendar, context.extension);
               return own ? convertCalendar(context.extension, calendar.offlineStorage) : null;
             } else {
@@ -206,7 +207,7 @@ this.calendar_calendars = class extends ExtensionAPI {
                       fire.sync(converted, { [name]: value });
                       break;
                     case "uri":
-                      fire.sync(converted, { url: value ? value.spec : undefined });
+                      fire.sync(converted, { url: value?.spec });
                       break;
                     case "disabled":
                       fire.sync(converted, { enabled: !value });

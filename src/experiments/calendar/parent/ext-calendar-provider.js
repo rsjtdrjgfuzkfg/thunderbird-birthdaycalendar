@@ -9,6 +9,8 @@ var { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
 var { ExtensionAPI, EventManager } = ExtensionCommon;
 
 class ExtCalendarProvider extends cal.provider.BaseClass {
+  QueryInterface = ChromeUtils.generateQI(["calICalendar", "calIChangeLog", "calISchedulingSupport"]);
+
   static register(extension) {
     let calmgr = cal.getCalendarManager();
     let type = "ext-" + extension.id;
@@ -27,12 +29,11 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
   }
   static unregister(extension) {
     let calmgr = cal.getCalendarManager();
-    calmgr.unregisterCalendarProvider("ext-" + extension.id);
+    calmgr.unregisterCalendarProvider("ext-" + extension.id, true);
   }
 
   constructor() {
     super();
-    this.QueryInterface = ChromeUtils.generateQI(["calICalendar", "calIChangeLog", "calISchedulingSupport"]);
     this.initProviderBase();
   }
 
@@ -40,9 +41,7 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
     return this.extension.id;
   }
 
-  get canRefresh() {
-    return true;
-  }
+  canRefresh = true;
 
   get id() {
     return super.id;
@@ -84,9 +83,9 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
         break;
 
       case "capabilities.timezones.floating.supported":
-        return !(this.capabilities.timezones && this.capabilities.timezones.floating === false);
+        return !(this.capabilities.timezones?.floating === false);
       case "capabilities.timezones.UTC.supported":
-        return !(this.capabilities.timezones && this.capabilities.timezones.UTC === false);
+        return !(this.capabilities.timezones?.UTC === false);
       case "capabilities.attachments.supported":
         return !(this.capabilities.attachments === false);
       case "capabilities.priority.supported":
@@ -95,18 +94,19 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
         return !(this.capabilities.privacy === false);
       case "capabilities.privacy.values":
         return Array.isArray(this.capabilities.privacy)
-          ? this.capabilities.privacy.map(val => val.toUpperCase())
+          ? this.capabilities.privacy?.map(val => val.toUpperCase())
           : ["PUBLIC", "CONFIDENTIAL", "PRIVATE"];
       case "capabilities.categories.maxCount":
-        return this.capabilities.categories && Number.isInteger(this.capabilities.categories.count)
-          ? this.capabilities.categories.count
-          : -1;
+        return Number.isInteger(this.capabilities.categories?.count)
+          && this.capabilities.categories.count >= 0
+          ? this.capabilities.categories?.count
+          : null;
       case "capabilities.alarms.maxCount":
-        return this.capabilities.alarms && Number.isInteger(this.capabilities.alarms.count)
-          ? this.capabilities.alarms.count
+        return Number.isInteger(this.capabilities.alarms?.count)
+          ? this.capabilities.alarms?.count
           : undefined;
       case "capabilities.alarms.actionValues":
-        return this.capabilities.alarms && this.capabilities.alarms.actions && this.capabilities.alarms.actions.map(val => val.toUpperCase()) || ["DISPLAY"];
+        return this.capabilities.alarms?.actions?.map(val => val.toUpperCase()) || ["DISPLAY"];
       case "capabilities.tasks.supported":
         return !(this.capabilities.tasks === false);
       case "capabilities.events.supported":
@@ -134,10 +134,12 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
       }
 
       if (metadata) {
-        this.offlineStorage.setMetaData(item.hashId, JSON.stringify(metadata));
+        this.offlineStorage.setMetaData(item.id, JSON.stringify(metadata));
       }
 
-      item.calendar = this.superCalendar;
+      if (!item.calendar) {
+        item.calendar = this.superCalendar;
+      }
       this.observers.notify("onAddItem", [item]);
       this.notifyOperationComplete(
         aListener,
@@ -172,10 +174,12 @@ class ExtCalendarProvider extends cal.provider.BaseClass {
       }
 
       if (metadata) {
-        this.offlineStorage.setMetaData(item.hashId, JSON.stringify(metadata));
+        this.offlineStorage.setMetaData(item.id, JSON.stringify(metadata));
       }
 
-      item.calendar = this.superCalendar;
+      if (!item.calendar) {
+        item.calendar = this.superCalendar;
+      }
       this.observers.notify("onModifyItem", [item, aOldItem]);
       this.notifyOperationComplete(
         aListener,
@@ -284,7 +288,7 @@ this.calendar_provider = class extends ExtensionAPI {
     }
     let manifest = this.extension.manifest;
 
-    if (!(manifest.browser_specific_settings && manifest.browser_specific_settings.gecko && manifest.browser_specific_settings.gecko.id) && !(manifest.applications && manifest.applications.gecko && manifest.applications.gecko.id)) {
+    if (!manifest.browser_specific_settings?.gecko?.id && !manifest.applications?.gecko?.id) {
       console.warn(
         "Registering a calendar provider with a temporary id. Calendars created for this provider won't persist restarts"
       );
@@ -318,10 +322,13 @@ this.calendar_provider = class extends ExtensionAPI {
                   convertCalendar(context.extension, calendar),
                   convertItem(item, options, context.extension)
                 );
-                if (!props.id) {
-                  props.id = cal.getUUID();
+                if (props?.type) {
+                  item = propsToItem(props, item);
                 }
-                return { item: propsToItem(props), metadata: props.metadata };
+                if (!item.id) {
+                  item.id = cal.getUUID();
+                }
+                return { item, metadata: props?.metadata };
               };
 
               context.extension.on("calendar.provider.onItemCreated", listener);
@@ -341,7 +348,10 @@ this.calendar_provider = class extends ExtensionAPI {
                   convertItem(item, options, context.extension),
                   convertItem(oldItem, options, context.extension)
                 );
-                return { item: propsToItem(props), metadata: props.metadata };
+                if (props?.type) {
+                  item = propsToItem(props, item);
+                }
+                return { item, metadata: props?.metadata };
               };
 
               context.extension.on("calendar.provider.onItemUpdated", listener);

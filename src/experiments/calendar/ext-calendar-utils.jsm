@@ -104,9 +104,9 @@ function propsToItem(props, baseItem) {
     throw new ExtensionError("Invalid item type: " + props.type);
   }
 
-  if (props.formats && props.formats.use == "ical") {
+  if (props.formats?.use == "ical") {
     item.icalString = props.formats.ical;
-  } else if (props.formats && props.formats.use == "jcal") {
+  } else if (props.formats?.use == "jcal") {
     item.icalString = ICAL.stringify(props.formats.jcal);
   } else {
     if (props.id) {
@@ -165,13 +165,13 @@ function convertItem(item, options, extension) {
     let cache = getCachedCalendar(item.calendar);
     try {
       // TODO This is a sync operation. Not great. Can we optimize this?
-      props.metadata = JSON.parse(cache.getMetaData(item.hashId)) || {};
+      props.metadata = JSON.parse(cache.getMetaData(item.id)) ?? {};
     } catch (e) {
       // Ignore json parse errors
     }
   }
 
-  if (options.format) {
+  if (options?.returnFormat) {
     props.formats = { use: null };
     let formats = options.returnFormat;
     if (!Array.isArray(formats)) {
@@ -213,8 +213,8 @@ function convertAlarm(item, alarm) {
   return {
     itemId: item.id,
     action: alarm.action.toLowerCase(),
-    date: alarm.alarmDate ? alarm.alarmDate.icalString : undefined,
-    offset: alarm.offset ? alarm.offset.icalString : undefined,
+    date: alarm.alarmDate?.icalString,
+    offset: alarm.offset?.icalString,
     related: ALARM_RELATED_MAP[alarm.related],
   };
 }
