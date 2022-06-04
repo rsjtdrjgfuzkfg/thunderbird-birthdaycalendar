@@ -81,7 +81,10 @@ Mc.provider.onSync.addListener(async (cal) => {
       continue; // Skip contacts without birthday
     }
 
-    const name = contact.properties.DisplayName || contact.id;
+    const joinNameParts = (a, b) => a ? b ? a + " " + b : a : b;
+    const name = contact.properties.DisplayName || joinNameParts(
+        contact.properties.FirstName, contact.properties.LastName)
+        || contact.properties.PrimaryEmail || contact.id;
 
     let years; // array with all years that get an event for this birthday
     if (bYear) {
