@@ -1,4 +1,6 @@
-This WebExtension Experiment is based on the draft for the Calendar API
-created by @kewisch, avaialble at
+This WebExtension Experiment is maintained by the Thunderbird project and
+was originally created by @kewisch. Get the latest version from here:
 https://github.com/thundernest/tb-web-ext-experiments/tree/master/calendar
 
+Note that the version used in this add-on might be outdated and/or deviate
+from the official repository. Review this add-ons' git log for details.

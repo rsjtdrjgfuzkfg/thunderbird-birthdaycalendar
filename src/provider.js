@@ -47,14 +47,41 @@ Mc.provider.onSync.addListener(async (cal) => {
 
   await Mc.calendars.clear(cal.cacheId);
   for (let contact of ab.contacts) {
-    const bDay = parseInt(contact.properties.BirthDay);
-    const bMonth = parseInt(contact.properties.BirthMonth);
+    let bDay = null;
+    let bMonth = null;
+    let bYear = null;
+    if (contact.properties.hasOwnProperty("_vCard")) {
+      // Thunderbird 102+ no longer provides access to the birthday on its own,
+      // but instead requires parsing vCard. Proper vCard parsing would be
+      // overkill for our purposes so we resort to regexes:
+      let birthdayMatch = contact.properties._vCard.match("[\r\n]"
+          // Select BDAY property, but ignore params
+          + "BDAY(?:;[a-zA-Z=;]*):"
+          // per RFC 6350 and assuming the type is DATE or DATE-TIME, there are
+          // two relevant date formats (there are others that do not include
+          // both day and month, but we're not interested in them):
+          // YYYYMMDD (ISO 8601:2004 4.1.2.2 basic)
+          // --MMDD   (ISO 8601:2000 5.2.1.3 d basic)
+          + "(--|[0-9]{4})([0-9]{2})([0-9]{2})"
+          // which can be optionally followed by a time separated by 'T'
+          + "(?:T[0-9Z-]*)?[\r\n]");
+      if (birthdayMatch) {
+        bYear = parseInt(birthdayMatch[1] || birthdayMatch[4])
+        bMonth = parseInt(birthdayMatch[2] || birthdayMatch[5]
+            || birthdayMatch[6])
+        bDay = parseInt(birthdayMatch[3] || birthdayMatch[7])
+      }
+    } else {
+      // Thudnerbird 91 provided direct access to the birthday
+      bYear = parseInt(contact.properties.BirthYear)
+      bMonth = parseInt(contact.properties.BirthMonth);
+      bDay = parseInt(contact.properties.BirthDay);
+    }
     if (!bDay || !bMonth) {
       continue; // Skip contacts without birthday
     }
 
     const name = contact.properties.DisplayName || contact.id;
-    const bYear = parseInt(contact.properties.BirthYear);
 
     let years; // array with all years that get an event for this birthday
     if (bYear) {

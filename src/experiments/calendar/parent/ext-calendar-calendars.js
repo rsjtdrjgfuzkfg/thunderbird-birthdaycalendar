@@ -13,19 +13,18 @@ var { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
 
 this.calendar_calendars = class extends ExtensionAPI {
   getAPI(context) {
-    const calmgr = cal.getCalendarManager();
     const {
       unwrapCalendar,
       getResolvedCalendarById,
       isOwnCalendar,
       convertCalendar,
-    } = ChromeUtils.import(this.extension.rootURI.resolve("experiments/calendar/ext-calendar-utils.jsm"));
+    } = ChromeUtils.import("resource://experiment-calendar/experiments/calendar/ext-calendar-utils.jsm");
 
     return {
       calendar: {
         calendars: {
           query: async function({ type, url, name, color, readOnly, enabled }) {
-            let calendars = calmgr.getCalendars();
+            let calendars = cal.manager.getCalendars();
 
             let pattern = null;
             if (url) {
@@ -72,16 +71,16 @@ this.calendar_calendars = class extends ExtensionAPI {
           get: async function(id) {
             // TODO find a better way to determine cache id
             if (id.endsWith("#cache")) {
-              let calendar = unwrapCalendar(calmgr.getCalendarById(id.substring(0, id.length - 6)));
+              let calendar = unwrapCalendar(cal.manager.getCalendarById(id.substring(0, id.length - 6)));
               let own = calendar.offlineStorage && isOwnCalendar(calendar, context.extension);
               return own ? convertCalendar(context.extension, calendar.offlineStorage) : null;
             } else {
-              let calendar = calmgr.getCalendarById(id);
+              let calendar = cal.manager.getCalendarById(id);
               return convertCalendar(context.extension, calendar);
             }
           },
           create: async function(createProperties) {
-            let calendar = calmgr.createCalendar(
+            let calendar = cal.manager.createCalendar(
               createProperties.type,
               Services.io.newURI(createProperties.url)
             );
@@ -94,13 +93,13 @@ this.calendar_calendars = class extends ExtensionAPI {
               calendar.setProperty("color", createProperties.color);
             }
 
-            calmgr.registerCalendar(calendar);
+            cal.manager.registerCalendar(calendar);
 
-            calendar = calmgr.getCalendarById(calendar.id);
+            calendar = cal.manager.getCalendarById(calendar.id);
             return convertCalendar(context.extension, calendar);
           },
           update: async function(id, updateProperties) {
-            let calendar = calmgr.getCalendarById(id);
+            let calendar = cal.manager.getCalendarById(id);
             if (!calendar) {
               throw new ExtensionError(`Invalid calendar id: ${id}`);
             }
@@ -126,15 +125,18 @@ this.calendar_calendars = class extends ExtensionAPI {
               }
             }
 
-            // TODO capabilities merging
+            if (updateProperties.capabilities) {
+              // TODO validate capability names
+              calendar.capabilities = Object.assign({}, calendar.capabilities, updateProperties.capabilities);
+            }
           },
           remove: async function(id) {
-            let calendar = calmgr.getCalendarById(id);
+            let calendar = cal.manager.getCalendarById(id);
             if (!calendar) {
               throw new ExtensionError(`Invalid calendar id: ${id}`);
             }
 
-            calmgr.unregisterCalendar(calendar);
+            cal.manager.unregisterCalendar(calendar);
           },
           clear: async function(id) {
             if (!id.endsWith("#cache")) {
@@ -142,7 +144,7 @@ this.calendar_calendars = class extends ExtensionAPI {
             }
 
             let offlineStorage = getResolvedCalendarById(context.extension, id);
-            let calendar = calmgr.getCalendarById(id.substring(0, id.length - 6));
+            let calendar = cal.manager.getCalendarById(id.substring(0, id.length - 6));
 
             if (!isOwnCalendar(calendar, context.extension)) {
               throw new ExtensionError("Cannot clear foreign calendar");
@@ -166,11 +168,31 @@ this.calendar_calendars = class extends ExtensionAPI {
             calendar.wrappedJSObject.mObservers.notify("onLoad", [calendar]);
           },
 
-          synchronize: function() {
-            // TODO don't rely on the window composite calendar. Have a method in the calendar
-            // manager that will do a full refresh
-            let mainWindow = Services.wm.getMostRecentWindow("mail:3pane");
-            cal.view.getCompositeCalendar(mainWindow).refresh();
+          synchronize: function(ids) {
+            let calendars = [];
+            if (ids) {
+              if (!Array.isArray(ids)) {
+                ids = [ids];
+              }
+              for (let id of ids) {
+                let calendar = cal.manager.getCalendarById(id);
+                if (!calendar) {
+                  throw new ExtensionError(`Invalid calendar id: ${id}`);
+                }
+                calendars.push(calendar);
+              }
+            } else {
+              for (let calendar of cal.manager.getCalendars()) {
+                if (calendar.getProperty("calendar-main-in-composite")) {
+                  calendars.push(calendar);
+                }
+              }
+            }
+            for (let calendar of calendars) {
+              if (!calendar.getProperty("disabled") && calendar.canRefresh) {
+                calendar.refresh();
+              }
+            }
           },
 
           onCreated: new EventManager({
@@ -186,9 +208,9 @@ this.calendar_calendars = class extends ExtensionAPI {
                 onCalendarDeleting(calendar) {},
               };
 
-              cal.getCalendarManager().addObserver(observer);
+              cal.manager.addObserver(observer);
               return () => {
-                cal.getCalendarManager().removeObserver(observer);
+                cal.manager.removeObserver(observer);
               };
             },
           }).api(),
@@ -216,9 +238,9 @@ this.calendar_calendars = class extends ExtensionAPI {
                 },
               });
 
-              cal.getCalendarManager().addCalendarObserver(observer);
+              cal.manager.addCalendarObserver(observer);
               return () => {
-                cal.getCalendarManager().removeCalendarObserver(observer);
+                cal.manager.removeCalendarObserver(observer);
               };
             },
           }).api(),
@@ -236,9 +258,9 @@ this.calendar_calendars = class extends ExtensionAPI {
                 onCalendarDeleting(calendar) {},
               };
 
-              cal.getCalendarManager().addObserver(observer);
+              cal.manager.addObserver(observer);
               return () => {
-                cal.getCalendarManager().removeObserver(observer);
+                cal.manager.removeObserver(observer);
               };
             },
           }).api(),

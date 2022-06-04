@@ -5,7 +5,6 @@
 var { ExtensionCommon } = ChromeUtils.import("resource://gre/modules/ExtensionCommon.jsm");
 var { ExtensionUtils } = ChromeUtils.import("resource://gre/modules/ExtensionUtils.jsm");
 var { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
-var { PromiseUtils } = ChromeUtils.import("resource://gre/modules/PromiseUtils.jsm");
 
 var { ExtensionAPI, EventManager } = ExtensionCommon;
 var { ExtensionError } = ExtensionUtils;
@@ -20,29 +19,60 @@ this.calendar_items = class extends ExtensionAPI {
       propsToItem,
       convertItem,
       convertAlarm,
-    } = ChromeUtils.import(this.extension.rootURI.resolve("experiments/calendar/ext-calendar-utils.jsm"));
+    } = ChromeUtils.import("resource://experiment-calendar/experiments/calendar/ext-calendar-utils.jsm");
 
     return {
       calendar: {
         items: {
+          query: async function(queryProps) {
+            console.log(queryProps);
+            let calendars = [];
+            if (typeof queryProps.calendarId == "string") {
+              calendars = [getResolvedCalendarById(context.extension, queryProps.calendarId)];
+            } else if (Array.isArray(queryProps.calendarId)) {
+              calendars = queryProps.calendarId.map(calendarId => getResolvedCalendarById(context.extension, calendarId));
+            } else {
+              calendars = cal.manager.getCalendars().filter(calendar => !calendar.getProperty("disabled"));
+            }
+
+
+            let calendarItems;
+            if (queryProps.id) {
+              calendarItems = await Promise.all(calendars.map(calendar => {
+                return calendar.getItem(queryProps.id);
+              }));
+            } else {
+              calendarItems = await Promise.all(calendars.map(async calendar => {
+                let filter = Ci.calICalendar.ITEM_FILTER_COMPLETED_ALL;
+                if (queryProps.type == "event") {
+                  filter |= Ci.calICalendar.ITEM_FILTER_TYPE_EVENT;
+                } else if (queryProps.type == "task") {
+                  filter |= Ci.calICalendar.ITEM_FILTER_TYPE_TODO;
+                } else {
+                  filter |= Ci.calICalendar.ITEM_FILTER_TYPE_ALL;
+                }
+
+                if (queryProps.expand) {
+                  filter |= Ci.calICalendar.ITEM_FILTER_CLASS_OCCURRENCES;
+                }
+
+                let rangeStart = queryProps.rangeStart ? cal.createDateTime(queryProps.rangeStart) : null;
+                let rangeEnd = queryProps.rangeEnd ? cal.createDateTime(queryProps.rangeEnd) : null;
+                return calendar.getItemsAsArray(filter, queryProps.limit ?? 0, rangeStart, rangeEnd);
+              }));
+              calendarItems = calendarItems.flat();
+            }
+
+            return calendarItems.map(item => convertItem(item, queryProps, context.extension));
+          },
           get: async function(calendarId, id, options) {
             let calendar = getResolvedCalendarById(context.extension, calendarId);
-
-            // TODO for some reason using promisifyCalendar directly causes an error
-            // "proxy must report the same value for the non-writable, non-configurable property"
-            // Patch Lightning to proxy an empty object instead. https://github.com/azu/proxy-frozen-object
-            // let pcal = cal.async.promisifyCalendar(calendar.wrappedJSObject);
-            // let [item] = await pcal.getItem(id);
-            let deferred = PromiseUtils.defer();
-            let listener = cal.async.promiseOperationListener(deferred);
-            calendar.getItem(id, listener);
-            let [item] = await deferred.promise;
+            let item = await calendar.getItem(id);
 
             return convertItem(item, options, context.extension);
           },
           create: async function(calendarId, createProperties) {
             let calendar = getResolvedCalendarById(context.extension, calendarId);
-            let pcal = cal.async.promisifyCalendar(calendar);
             let item = propsToItem(createProperties);
             item.calendar = calendar.superCalendar;
 
@@ -53,25 +83,24 @@ this.calendar_items = class extends ExtensionAPI {
 
             let createdItem;
             if (isCachedCalendar(calendarId)) {
-              createdItem = await pcal.modifyItem(item, null);
+              createdItem = await calendar.modifyItem(item, null);
             } else {
-              createdItem = await pcal.adoptItem(item);
+              createdItem = await calendar.adoptItem(item);
             }
 
             return convertItem(createdItem, createProperties, context.extension);
           },
           update: async function(calendarId, id, updateProperties) {
             let calendar = getResolvedCalendarById(context.extension, calendarId);
-            let pcal = cal.async.promisifyCalendar(calendar);
 
-            let [oldItem] = await pcal.getItem(id);
+            let oldItem = await calendar.getItem(id);
             if (!oldItem) {
               throw new ExtensionError("Could not find item " + id);
             }
             if (oldItem instanceof Ci.calIEvent) {
               updateProperties.type = "event";
             } else if (oldItem instanceof Ci.calITodo) {
-              updateProperties.type = "todo";
+              updateProperties.type = "task";
             }
             let newItem = propsToItem(updateProperties, oldItem?.clone());
             newItem.calendar = calendar.superCalendar;
@@ -82,7 +111,7 @@ this.calendar_items = class extends ExtensionAPI {
               cache.setMetaData(newItem.id, JSON.stringify(updateProperties.metadata));
             }
 
-            let modifiedItem = await pcal.modifyItem(newItem, oldItem);
+            let modifiedItem = await calendar.modifyItem(newItem, oldItem);
             return convertItem(modifiedItem, updateProperties, context.extension);
           },
           move: async function(fromCalendarId, id, toCalendarId) {
@@ -90,10 +119,9 @@ this.calendar_items = class extends ExtensionAPI {
               return;
             }
 
-            let calmgr = cal.getCalendarManager();
-            let fromCalendar = cal.async.promisifyCalendar(calmgr.getCalendarById(fromCalendarId));
-            let toCalendar = cal.async.promisifyCalendar(calmgr.getCalendarById(toCalendarId));
-            let [item] = await fromCalendar.getItem(id);
+            let fromCalendar = cal.manager.getCalendarById(fromCalendarId);
+            let toCalendar = cal.manager.getCalendarById(toCalendarId);
+            let item = await fromCalendar.getItem(id);
 
             if (!item) {
               throw new ExtensionError("Could not find item " + id);
@@ -111,13 +139,11 @@ this.calendar_items = class extends ExtensionAPI {
           },
           remove: async function(calendarId, id) {
             let calendar = getResolvedCalendarById(context.extension, calendarId);
-            let pcal = cal.async.promisifyCalendar(calendar);
-
-            let [item] = await pcal.getItem(id);
+            let item = await calendar.getItem(id);
             if (!item) {
               throw new ExtensionError("Could not find item " + id);
             }
-            await pcal.deleteItem(item);
+            await calendar.deleteItem(item);
           },
 
           onCreated: new EventManager({
@@ -130,9 +156,9 @@ this.calendar_items = class extends ExtensionAPI {
                 },
               });
 
-              cal.getCalendarManager().addCalendarObserver(observer);
+              cal.manager.addCalendarObserver(observer);
               return () => {
-                cal.getCalendarManager().removeCalendarObserver(observer);
+                cal.manager.removeCalendarObserver(observer);
               };
             },
           }).api(),
@@ -149,9 +175,9 @@ this.calendar_items = class extends ExtensionAPI {
                 },
               });
 
-              cal.getCalendarManager().addCalendarObserver(observer);
+              cal.manager.addCalendarObserver(observer);
               return () => {
-                cal.getCalendarManager().removeCalendarObserver(observer);
+                cal.manager.removeCalendarObserver(observer);
               };
             },
           }).api(),
@@ -166,9 +192,9 @@ this.calendar_items = class extends ExtensionAPI {
                 },
               });
 
-              cal.getCalendarManager().addCalendarObserver(observer);
+              cal.manager.addCalendarObserver(observer);
               return () => {
-                cal.getCalendarManager().removeCalendarObserver(observer);
+                cal.manager.removeCalendarObserver(observer);
               };
             },
           }).api(),
