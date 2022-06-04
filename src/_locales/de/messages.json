@@ -21,14 +21,52 @@
     "message": "Adressbücher, für die Geburtstagskalender angezeigt werden sollen:",
     "description": "Label above the list of address books in the preferences"
   },
-  "yearsToDisplayAgeForSetting": {
-    "message": "Zeitraum, in dem das Alter berechnet wird: $years$ Jahre",
-    "description": "Label for the setting controlling the number of years to generate age information for; the placeholder will be replaced with an editable field.",
+  "ageCalculationRangeSetting1": {
+    "message": "Altersberechnung über ",
+    "description": "Label for the setting controlling the range to generate age information for, rendered before the editable field.",
     "placeholders": {
-      "years": {
+      "range": {
         "content": "$1",
-        "example": "4"
+        "example": "2020 - 2024"
       }
     }
+  },
+  "ageCalculationRangeSetting2": {
+    "message": " Jahr(e): $range$",
+    "description": "Label for the setting controlling the range to generate age information for, rendered after the editable field.",
+    "placeholders": {
+      "range": {
+        "content": "$1",
+        "example": "2020 - 2024"
+      }
+    }
+  },
+  "ageCalculationRange": {
+    "message": "$firstYear$ - $lastYear$",
+    "description": "Text representing the range in which age calculation takes place, if longer than one year",
+    "placeholders": {
+      "firstYear": {
+        "content": "$1",
+        "example": "2020"
+      },
+      "lastYear": {
+        "content": "$2",
+        "example": "2024"
+      }
+    }
+  },
+  "ageCalculationRangeCurrentYear": {
+    "message": "nur für $year$",
+    "description": "Text representing the range in which age calculation takes place, if only a single year",
+    "placeholders": {
+      "year": {
+        "content": "$1",
+        "example": "2022"
+      }
+    }
+  },
+  "ageCalculationRangeNone": {
+    "message": "kein Alter anzeigen",
+    "description": "Text representing the range in which age calculation takes place, if age calculation is disabled"
   }
 }

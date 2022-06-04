@@ -30,9 +30,23 @@ addEventListener('load', () => (async () => {
   let settings = await BC.getGlobalSettings();
 
   const ageYearsLabel = document.createElement("label");
-  const ageYearsText = Mi.getMessage("yearsToDisplayAgeForSetting",
-      [separator]).split(separator);
-  ageYearsLabel.appendChild(document.createTextNode(ageYearsText[0]));
+  const ageYearsText1 = ageYearsLabel.appendChild(document.createTextNode(""));
+  const ageYearsText2 = document.createTextNode("");
+  const updateAgeYearsText = async function() {
+    const currentYear = (new Date()).getFullYear();
+    const years = settings.yearsToDisplayAgeFor;
+    const placeholders = [
+      currentYear - Math.max(years - 1, 0),
+      currentYear + years - 1
+    ];
+    const rangeText = Mi.getMessage("ageCalculationRange"
+        + (years > 1 ? "" : years == 1 ? "CurrentYear" : "None"), placeholders);
+    ageYearsText1.textContent = Mi.getMessage("ageCalculationRangeSetting1",
+        [rangeText]);
+    ageYearsText2.textContent = Mi.getMessage("ageCalculationRangeSetting2",
+        [rangeText]);
+  };
+  updateAgeYearsText();
   const ageYearsSpinner = document.createElement("input");
   ageYearsSpinner.type = "number";
   ageYearsSpinner.min = 0;
@@ -45,10 +59,11 @@ addEventListener('load', () => (async () => {
     }
     settings.yearsToDisplayAgeFor = newValue;
     await BC.setGlobalSettings(settings);
+    updateAgeYearsText();
     await Mc.calendars.synchronize();
   })().catch(console.error));
   ageYearsLabel.appendChild(ageYearsSpinner);
-  ageYearsLabel.appendChild(document.createTextNode(ageYearsText[1]));
+  ageYearsLabel.appendChild(ageYearsText2);
   document.body.appendChild(ageYearsLabel);
 
   document.body.appendChild(document.createElement("hr"));

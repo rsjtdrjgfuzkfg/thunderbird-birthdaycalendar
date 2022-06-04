@@ -4,9 +4,17 @@
 (async () => {
 
   const VERSION_FIRSTRUN = 0;
-  const VERSION_CURRENT = 1;
+  const VERSION_1_0_OR_OLDER = 1;
+  const VERSION_CURRENT = 2;
   const {version} = await Msl.get({version: VERSION_FIRSTRUN});
   switch (version) {
+    case VERSION_1_0_OR_OLDER:
+      const oldSettings = await Msl.get({yearsToDisplayAgeFor: 4});
+      await Msl.set({
+        yearsToDisplayAgeFor: Math.ceil(oldSettings.yearsToDisplayAgeFor / 2),
+        version: VERSION_CURRENT
+      });
+      // fallthrough
     case VERSION_CURRENT:
       break;
 

@@ -71,7 +71,7 @@ const BC = {};
   // Settings
   BC.getGlobalSettings = async function() {
     return await Msl.get({
-      yearsToDisplayAgeFor: 4
+      yearsToDisplayAgeFor: 2
     });
   };
 

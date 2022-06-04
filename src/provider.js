@@ -41,9 +41,9 @@ Mc.provider.onSync.addListener(async (cal) => {
   const dtStamp = "DTSTAMP:" + icalUTZTime(now) + "\n";
 
   const settings = await BC.getGlobalSettings();
-  const ageStartYear = now.getFullYear()
-      - Math.ceil(settings.yearsToDisplayAgeFor / 2);
-  const ageEndYear = ageStartYear + settings.yearsToDisplayAgeFor;
+  const ageStartYear = now.getFullYear() - Math.max(
+      settings.yearsToDisplayAgeFor - 1, 0);
+  const ageEndYear = now.getFullYear() + settings.yearsToDisplayAgeFor;
 
   await Mc.calendars.clear(cal.cacheId);
   for (let contact of ab.contacts) {
