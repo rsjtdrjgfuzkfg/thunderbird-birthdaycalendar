@@ -10,7 +10,10 @@ clean:
 clobber: clean
 	rm -Rf dist
 
-SRCFILES := $(shell find src -type f -not -path 'src/manifest.json')
+SRCFILES := $(shell find src -type f \
+	-not -path 'src/manifest.json' \
+	-not -name '.*' \
+	)
 
 build/version.txt: .git/index $(SRCFILES) LICENSE
 	mkdir -p "$(@D)"
