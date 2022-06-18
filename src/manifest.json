@@ -3,7 +3,7 @@
   "applications": {
     "gecko": {
       "id": "birthdaycalendar@rsjtdrjgfuzkfg.com",
-      "strict_min_version": "102.0a1",
+      "strict_min_version": "102.0b7",
       "strict_max_version": "102.*"
     }
   },

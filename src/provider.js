@@ -50,13 +50,13 @@ Mc.provider.onSync.addListener(async (cal) => {
     let bDay = null;
     let bMonth = null;
     let bYear = null;
-    if (contact.properties.hasOwnProperty("_vCard")) {
-      // Thunderbird 102+ no longer provides access to the birthday on its own,
-      // but instead requires parsing vCard. Proper vCard parsing would be
-      // overkill for our purposes so we resort to regexes:
-      let birthdayMatch = contact.properties._vCard.match("[\r\n]"
+    if (contact.properties.hasOwnProperty("vCard")) {
+      // Thunderbird 102+ introduced raw vCard access and deprecated the use
+      // of Birth* properties. We thus prefer vCard if present, though we only
+      // use some regexes as proper vCard parsing would be overkill:
+      let birthdayMatch = contact.properties.vCard.match("[\r\n]"
           // Select BDAY property, but ignore params
-          + "BDAY(?:;[a-zA-Z=;]*):"
+          + "BDAY(?:;[a-zA-Z=;]*)?:"
           // per RFC 6350 and assuming the type is DATE or DATE-TIME, there are
           // two relevant date formats (there are others that do not include
           // both day and month, but we're not interested in them):
@@ -66,10 +66,9 @@ Mc.provider.onSync.addListener(async (cal) => {
           // which can be optionally followed by a time separated by 'T'
           + "(?:T[0-9Z-]*)?[\r\n]");
       if (birthdayMatch) {
-        bYear = parseInt(birthdayMatch[1] || birthdayMatch[4])
-        bMonth = parseInt(birthdayMatch[2] || birthdayMatch[5]
-            || birthdayMatch[6])
-        bDay = parseInt(birthdayMatch[3] || birthdayMatch[7])
+        bYear = parseInt(birthdayMatch[1])
+        bMonth = parseInt(birthdayMatch[2])
+        bDay = parseInt(birthdayMatch[3])
       }
     } else {
       // Thudnerbird 91 provided direct access to the birthday
