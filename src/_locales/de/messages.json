@@ -68,5 +68,13 @@
   "ageCalculationRangeNone": {
     "message": "kein Alter anzeigen",
     "description": "Text representing the range in which age calculation takes place, if age calculation is disabled"
+  },
+  "ageCutoffYear1": {
+    "message": "Geburtsjahre bis einschließlich ",
+    "description": "Label for the latest birthyear to ignore when doing age calculations, rendered before the editable field."
+  },
+  "ageCutoffYear2": {
+    "message": " ignorieren",
+    "description": "Label for the latest birthyear to ignore when doing age calculations, rendered after the editable field."
   }
 }

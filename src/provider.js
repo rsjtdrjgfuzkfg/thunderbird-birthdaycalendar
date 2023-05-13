@@ -71,13 +71,16 @@ Mc.provider.onSync.addListener(async (cal) => {
         bDay = parseInt(birthdayMatch[3])
       }
     } else {
-      // Thudnerbird 91 provided direct access to the birthday
+      // Thunderbird 91 provided direct access to the birthday
       bYear = parseInt(contact.properties.BirthYear)
       bMonth = parseInt(contact.properties.BirthMonth);
       bDay = parseInt(contact.properties.BirthDay);
     }
     if (!bDay || !bMonth) {
       continue; // Skip contacts without birthday
+    }
+    if (settings.ageCutoffYear && bYear <= settings.ageCutoffYear) {
+      bYear = NaN;
     }
 
     const joinNameParts = (a, b) => a ? b ? a + " " + b : a : b;

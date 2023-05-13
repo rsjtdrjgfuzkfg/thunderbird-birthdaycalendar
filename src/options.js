@@ -1,5 +1,10 @@
 // Options page script
 
+// The default cutoff year offered when enabling the feature; 1604 has been
+// suggested in issue #17 as suitable value to work around iOS and MS office
+// enforcing a concrete birth year if no actual year is known.
+const defaultAgeCutoffYear = 1604;
+
 let abList; // div containing the list of address books
 
 async function refreshAbList() {
@@ -65,6 +70,36 @@ addEventListener('load', () => (async () => {
   ageYearsLabel.appendChild(ageYearsSpinner);
   ageYearsLabel.appendChild(ageYearsText2);
   document.body.appendChild(ageYearsLabel);
+
+  const ageCutoffLabel = document.createElement("label");
+  const ageCutoffCheckbox = document.createElement("input");
+  ageCutoffCheckbox.type = "checkbox";
+  ageCutoffCheckbox.checked = !!settings.ageCutoffYear;
+  ageCutoffLabel.appendChild(ageCutoffCheckbox);
+  ageCutoffLabel.appendChild(document.createTextNode(Mi.getMessage(
+      "ageCutoffYear1")));
+  const ageCutoffYear = document.createElement("input");
+  ageCutoffYear.type = "number";
+  ageCutoffYear.min = 1;
+  ageCutoffYear.max = 3000;
+  ageCutoffYear.value = settings.ageCutoffYear ?? defaultAgeCutoffYear;
+  ageCutoffYear.disabled = !settings.ageCutoffYear;
+  ageCutoffLabel.appendChild(ageCutoffYear);
+  ageCutoffLabel.appendChild(document.createTextNode(Mi.getMessage(
+      "ageCutoffYear2")));
+  document.body.appendChild(ageCutoffLabel);
+  const ageCutoffUpdate = () => (async () => {
+    if (ageCutoffCheckbox.checked) {
+      settings.ageCutoffYear = ageCutoffYear.value;
+      ageCutoffYear.disabled = false;
+    } else {
+      settings.ageCutoffYear = null;
+      ageCutoffYear.disabled = true;
+    }
+    await BC.setGlobalSettings(settings);
+  })().catch(console.error);
+  ageCutoffYear.addEventListener("change", ageCutoffUpdate);
+  ageCutoffCheckbox.addEventListener("click", ageCutoffUpdate);
 
   document.body.appendChild(document.createElement("hr"));
 
