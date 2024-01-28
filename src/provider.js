@@ -66,13 +66,13 @@ Mc.provider.onSync.addListener(async (cal) => {
           // which can be optionally followed by a time separated by 'T'
           + "(?:T[0-9Z-]*)?[\r\n]");
       if (birthdayMatch) {
-        bYear = parseInt(birthdayMatch[1])
-        bMonth = parseInt(birthdayMatch[2])
-        bDay = parseInt(birthdayMatch[3])
+        bYear = parseInt(birthdayMatch[1]);
+        bMonth = parseInt(birthdayMatch[2]);
+        bDay = parseInt(birthdayMatch[3]);
       }
     } else {
       // Thunderbird 91 provided direct access to the birthday
-      bYear = parseInt(contact.properties.BirthYear)
+      bYear = parseInt(contact.properties.BirthYear);
       bMonth = parseInt(contact.properties.BirthMonth);
       bDay = parseInt(contact.properties.BirthDay);
     }
@@ -84,7 +84,7 @@ Mc.provider.onSync.addListener(async (cal) => {
     }
 
     const joinNameParts = (a, b) => a ? b ? a + " " + b : a : b;
-    const name = contact.properties.DisplayName || joinNameParts(
+    const name = '\u{1F382} ' + contact.properties.DisplayName || joinNameParts(
         contact.properties.FirstName, contact.properties.LastName)
         || contact.properties.PrimaryEmail || contact.id;
 
@@ -102,6 +102,11 @@ Mc.provider.onSync.addListener(async (cal) => {
       years = [1972];
     }
 
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth() + 1;
+    const nowHours = now.getHours();
+    const nowMin = now.getMinutes();
+    const nowSec = now.getSeconds();
     for (let year of years) {
       let instanceDate = new Date(year, bMonth - 1, bDay);
       if (instanceDate < 100) { // unlikely, but just in case...
@@ -144,14 +149,35 @@ Mc.provider.onSync.addListener(async (cal) => {
       ical += "DTEND;VALUE=DATE:" + icalDate(instanceDate) + "\n";
       ical += "TRANSP:TRANSPARENT\n";
 
+      // Add reminder for current and next month only
+      if ((year === nowYear && (bMonth === nowMonth || bMonth === nowMonth + 1)) ||
+          (year === nowYear + 1 && bMonth === 1 && nowMonth === 12)) {
+        if (!isNaN(settings.daysRemind) && settings.daysRemind >= 0) {
+          ical += "BEGIN:VALARM\n";
+          let triggerDays = settings.daysRemind;
+          if (triggerDays < 0) {
+            triggerDays = -triggerDays;
+          }
+
+          let TS_bday = BC.getTimestamp(year, bMonth, bDay, 0, 0, 0);
+          let TS_bday_now = BC.getTimestamp(year, bMonth, bDay, nowHours, nowMin, nowSec);
+          let trigger = BC.getDiffDays(TS_bday, TS_bday_now, triggerDays, 5);  // Add little delay of few sec
+          ical += "TRIGGER:" + trigger + "\n";
+
+          ical += "ACTION:DISPLAY\n";
+          ical += "DESCRIPTION:" + Mi.getMessage("BirthdayOf") +" " + icalStrip(name) + "\n";
+          ical += "END:VALARM\n";
+        }
+      }
+
       ical += "END:VEVENT\n";
       ical += "END:VCALENDAR\n";
       await Mc.items.create(cal.cacheId, {
         type: "event",
         formats: {
           use: "ical",
-          ical: ical
-        }
+          ical: ical,
+        },
       });
     }
   }

@@ -76,5 +76,13 @@
   "ageCutoffYear2": {
     "message": " ",
     "description": "Label for the latest birthyear to ignore when doing age calculations, rendered after the editable field."
+  },
+  "daysReminder": {
+    "message": "Reminder before the birthday in days:",
+    "description": "Label for the reminder."
+  },
+  "BirthdayOf": {
+    "message": "Birthday of",
+    "description": "Reminder description"
   }
 }

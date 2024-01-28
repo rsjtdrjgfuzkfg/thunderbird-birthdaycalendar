@@ -5,6 +5,8 @@
 // enforcing a concrete birth year if no actual year is known.
 const defaultAgeCutoffYear = 1604;
 
+const defaultReminder = 0;
+
 let abList; // div containing the list of address books
 
 async function refreshAbList() {
@@ -42,7 +44,7 @@ addEventListener('load', () => (async () => {
     const years = settings.yearsToDisplayAgeFor;
     const placeholders = [
       currentYear - Math.max(years - 1, 0),
-      currentYear + years - 1
+      currentYear + years - 1,
     ];
     const rangeText = Mi.getMessage("ageCalculationRange"
         + (years > 1 ? "" : years == 1 ? "CurrentYear" : "None"), placeholders);
@@ -101,6 +103,34 @@ addEventListener('load', () => (async () => {
   ageCutoffYear.addEventListener("change", ageCutoffUpdate);
   ageCutoffCheckbox.addEventListener("click", ageCutoffUpdate);
 
+  const daysReminderLabel = document.createElement("label");
+  const reminderCheckbox = document.createElement("input");
+  reminderCheckbox.type = "checkbox";
+  reminderCheckbox.checked = !!settings.daysRemind;
+  daysReminderLabel.appendChild(reminderCheckbox);
+  daysReminderLabel.appendChild(document.createTextNode(Mi.getMessage(
+      "daysReminder")));
+  const daysRemind = document.createElement("input");
+  daysRemind.type = "number";
+  daysRemind.min = 0;
+  daysRemind.max = 21;
+  daysRemind.value = settings.daysRemind ?? defaultReminder;
+  daysRemind.disabled = !settings.daysRemind;
+  daysReminderLabel.appendChild(daysRemind);
+  document.body.appendChild(daysReminderLabel);
+  const daysRemindUpdate = () => (async () => {
+    if (reminderCheckbox.checked) {
+      settings.daysRemind = daysRemind.value;
+      daysRemind.disabled = false;
+    } else {
+      settings.daysRemind = NaN;
+      daysRemind.disabled = true;
+    }
+    await BC.setGlobalSettings(settings);
+  })().catch(console.error);
+  daysRemind.addEventListener("change", daysRemindUpdate);
+  reminderCheckbox.addEventListener("click", daysRemindUpdate);
+
   document.body.appendChild(document.createElement("hr"));
 
   const abListLabel = document.createElement("p");
@@ -116,4 +146,3 @@ addEventListener('load', () => (async () => {
   Mab.onDeleted.addListener(refreshAbList);
   await refreshAbList();
 })().catch(console.error), {once: true});
-

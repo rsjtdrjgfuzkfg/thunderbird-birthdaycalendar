@@ -66,13 +66,61 @@ const BC = {};
     await Promise.all(existingCalendars.map(c => Mc.calendars.remove(c.id)));
     return existingCalendars.length > 0;
   };
+  
+  // Calculate dates
+  BC.getTimestamp = function(year, month, day, hours, minutes, seconds) {
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    const hh = String(hours).padStart(2, '0');
+    const min = String(minutes).padStart(2, '0');
+    const sec = String(seconds).padStart(2, '0');
+    const bdate = year + '-' + mm + '-' + dd + 'T' + hh + ':' + min + ':' + sec;
+    return Math.floor(new Date(bdate).getTime());
+  }
+  BC.getDiffDays = function(TS_Midnight, TS_Now, days, delaySecs) {
+    let diffDelay = TS_Now - (days*24*60*60*1000);
+    let diff = diffDelay - TS_Midnight + (delaySecs * 1000);
+
+    let daysDiff = Math.floor(diff/1000/60/60/24);
+    diff -= daysDiff*1000*60*60*24;
+    let hoursDiff = Math.floor(diff/1000/60/60);
+    diff -= hoursDiff*1000*60*60;
+    let minutesDiff = Math.floor(diff/1000/60);
+    diff -= minutesDiff*1000*60;
+    let secondsDiff = Math.floor(diff/1000);
+    /*
+    console.log('Diff = ' +
+      daysDiff + ' day/s ' +
+      hoursDiff + ' hour/s ' +
+      minutesDiff + ' minute/s ' +
+      secondsDiff + ' second/s ');
+    */
+
+    diff = "PT";
+    if (daysDiff < 0){
+      daysDiff = Math.abs(daysDiff);
+      hoursDiff = Math.abs(23 - hoursDiff);
+      minutesDiff = Math.abs(59 - minutesDiff);
+      secondsDiff = Math.abs(59 - secondsDiff);
+      if (daysDiff > 1) {
+        daysDiff -= 1;
+        diff = "-P" + daysDiff +"DT";
+      } else {
+        diff = "-PT";
+      }
+    }
+    diff += hoursDiff + "H" + minutesDiff + 'M'+ secondsDiff + 'S';
+    
+    return diff;
+  }
 
 
   // Settings
   BC.getGlobalSettings = async function() {
     return await Msl.get({
       yearsToDisplayAgeFor: 2,
-      ageCutoffYear: null
+      ageCutoffYear: null,
+      daysRemind: 0
     });
   };
 
