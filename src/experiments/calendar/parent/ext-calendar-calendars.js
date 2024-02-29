@@ -8,7 +8,6 @@ var { ExtensionUtils } = ChromeUtils.import("resource://gre/modules/ExtensionUti
 var { ExtensionAPI, EventManager } = ExtensionCommon;
 var { ExtensionError } = ExtensionUtils;
 
-var { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 var { cal } = ChromeUtils.import("resource:///modules/calendar/calUtils.jsm");
 
 this.calendar_calendars = class extends ExtensionAPI {

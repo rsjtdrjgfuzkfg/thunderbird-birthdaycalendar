@@ -56,7 +56,7 @@ Mc.provider.onSync.addListener(async (cal) => {
       // use some regexes as proper vCard parsing would be overkill:
       let birthdayMatch = contact.properties.vCard.match("[\r\n]"
           // Select BDAY property, but ignore params
-          + "BDAY(?:;[a-zA-Z=;]*)?:"
+          + "BDAY(?:;(?:[^\":]|\"[^\"]*\")*)?:"
           // per RFC 6350 and assuming the type is DATE or DATE-TIME, there are
           // two relevant date formats (there are others that do not include
           // both day and month, but we're not interested in them):
