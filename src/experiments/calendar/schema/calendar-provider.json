@@ -22,13 +22,68 @@
   },
   {
     "namespace": "calendar.provider",
+    "types": [{
+      "id": "ItemError",
+      "type": "object",
+      "description": "A failure in an onItem* handler",
+      "properties": {
+        "error": {
+          "type": "string",
+          "enum": [
+            "GENERAL_FAILURE",
+            "READ_FAILED",
+            "MODIFY_FAILED",
+            "CONFLICT"
+          ]
+        }
+      }
+    }, {
+      "id": "ItemOperationOptions",
+      "type": "object",
+      "description": "Options for the create/modify/delete event handlers",
+      "properties": {
+        "invitation": {
+          "type": "boolean",
+          "description": "If true, the item operation is from an invitation",
+          "optional": true
+        },
+        "offline": {
+          "type": "boolean",
+          "description": "If true, an offline operation is being replayed",
+          "optional": true
+        },
+        "force": {
+          "type": "boolean",
+          "description": "If true, instruct the provider to force overwrite changes (i.e. after a conflict)",
+          "optional": true
+        }
+      }
+    }],
+    "functions": [
+      {
+        "name": "setAdvanceAction",
+        "async": true,
+        "type": "function",
+        "parameters": [
+          {
+            "type": "object",
+            "properties": {
+              "forward": { "type": "string" },
+              "back": { "type": "string", "optional": true },
+              "label": { "type": "string" }
+            }
+          }
+        ]
+      }
+    ],
     "events": [
       {
         "name": "onItemCreated",
         "type": "function",
         "parameters": [
           { "name": "calendar", "$ref": "calendar.calendars.Calendar" },
-          { "name": "item", "$ref": "calendar.items.CalendarItem" }
+          { "name": "item", "$ref": "calendar.items.CalendarItem" },
+          { "name": "options", "$ref": "calendar.provider.ItemOperationOptions" }
         ],
         "extraParameters": [
           {
@@ -38,7 +93,14 @@
               "returnFormat": { "$ref": "calendar.items.ReturnFormat", "optional": true }
             }
           }
-        ]
+        ],
+        "returns": {
+          "description": "Returns the added item, or an error that occurred",
+          "choices": [
+            { "$ref": "calendar.provider.ItemError" },
+            { "$ref": "calendar.items.CalendarItem" }
+          ]
+        }
       },
       {
         "name": "onItemUpdated",
@@ -46,7 +108,8 @@
         "parameters": [
           { "name": "calendar", "$ref": "calendar.calendars.Calendar" },
           { "name": "item", "$ref": "calendar.items.CalendarItem" },
-          { "name": "oldItem", "$ref": "calendar.items.CalendarItem" }
+          { "name": "oldItem", "$ref": "calendar.items.CalendarItem" },
+          { "name": "options", "$ref": "calendar.provider.ItemOperationOptions" }
         ],
         "extraParameters": [
           {
@@ -56,14 +119,22 @@
               "returnFormat": { "$ref": "calendar.items.ReturnFormat", "optional": true }
             }
           }
-        ]
+        ],
+        "returns": {
+          "description": "Returns the modified item, or an error that occurred",
+          "choices": [
+            { "$ref": "calendar.provider.ItemError" },
+            { "$ref": "calendar.items.CalendarItem" }
+          ]
+        }
       },
       {
         "name": "onItemRemoved",
         "type": "function",
         "parameters": [
           { "name": "calendar", "$ref": "calendar.calendars.Calendar" },
-          { "name": "item", "$ref": "calendar.items.CalendarItem" }
+          { "name": "item", "$ref": "calendar.items.CalendarItem" },
+          { "name": "options", "$ref": "calendar.provider.ItemOperationOptions" }
         ],
         "extraParameters": [
           {
@@ -73,7 +144,12 @@
               "returnFormat": { "$ref": "calendar.items.ReturnFormat", "optional": true }
             }
           }
-        ]
+        ],
+        "returns": {
+          "description": "Optionally returns an item error if it occurred",
+          "optional": true,
+          "$ref": "calendar.provider.ItemError"
+        }
       },
       {
         "name": "onInit",
@@ -127,6 +203,13 @@
           { "name": "location", "type": "string" },
           { "name": "savePassword", "type": "boolean" },
           { "name": "extraProperties", "type": "object" }
+        ]
+      },
+      {
+        "name": "onAdvanceNewCalendar",
+        "type": "function",
+        "parameters": [
+          { "name": "id", "type": "string" }
         ]
       }
     ]

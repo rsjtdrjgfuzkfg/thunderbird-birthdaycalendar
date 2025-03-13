@@ -148,10 +148,8 @@ Mc.provider.onSync.addListener(async (cal) => {
       ical += "END:VCALENDAR\n";
       await Mc.items.create(cal.cacheId, {
         type: "event",
-        formats: {
-          use: "ical",
-          ical: ical
-        }
+        format: "ical",
+        item: ical
       });
     }
   }
