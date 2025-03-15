@@ -16,7 +16,7 @@ Beware: While unsupported builds may seemingly work as intended, incompatible ch
 
 ## Note for add-on developers
 
-This add-on is using an experiment based on the [upcoming Calendar API](https://github.com/thundernest/tb-web-ext-experiments/tree/main/calendar), but is otherwise a pure WebExtension. Please note that the bundled experiment in this repository may not contain the latest changes of the official API draft. If you want to create your own add-on using the Calendar API, you should consider to start with the latest official version.
+This add-on is using an experiment based on the [upcoming Calendar API](https://github.com/thunderbird/tb-web-ext-experiments/tree/main/calendar), but is otherwise a pure WebExtension. Please note that the bundled experiment in this repository may not contain the latest changes of the official API draft. If you want to create your own add-on using the Calendar API, you should consider to start with the latest official version.
 
 
 ## Building
