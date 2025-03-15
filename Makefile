@@ -1,8 +1,9 @@
 # Birthday Calendar Add-on for Thunderbird
 
-.PHONY: clean clobber
+.PHONY: xpi xpi-unsupported clean clobber
 
 xpi: dist/birthdaycalendar.xpi
+xpi-unsupported: dist/birthdaycalendar-unsupported.xpi
 
 clean:
 	rm -Rf build
@@ -29,3 +30,15 @@ dist/birthdaycalendar.xpi: $(SRCFILES) build/manifest.json LICENSE
 	cd build ; zip -9X "../$@" manifest.json
 	zip -9X "$@" LICENSE
 
+build/unsupported/manifest.json: src/manifest.json build/version.txt
+	mkdir -p "$(@D)"
+	sed -e "s/__BUILD_version__/$(shell cat build/version.txt)-unsupported/g" \
+	    -e 's/"strict_max_version": "[^"]*"/"strict_max_version": "*"/g' \
+	    "$<" > "$@"
+
+dist/birthdaycalendar-unsupported.xpi: $(SRCFILES) build/unsupported/manifest.json LICENSE
+	mkdir -p "$(@D)"
+	rm -f "$@"
+	cd src ; zip -9X "../$@" $(SRCFILES:src/%=%)
+	cd build/unsupported ; zip -9X "../../$@" manifest.json
+	zip -9X "$@" LICENSE
