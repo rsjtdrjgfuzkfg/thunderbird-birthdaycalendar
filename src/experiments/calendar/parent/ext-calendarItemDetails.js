@@ -2,143 +2,151 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-ChromeUtils.defineModuleGetter(
-  this,
-  "ExtensionSupport",
-  "resource:///modules/ExtensionSupport.jsm",
-);
+var { ExtensionCommon: { ExtensionAPI, makeWidgetId } } = ChromeUtils.importESModule("resource://gre/modules/ExtensionCommon.sys.mjs");
 
-var { XPCOMUtils } = ChromeUtils.import("resource://gre/modules/XPCOMUtils.jsm");
-var { ExtensionCommon } = ChromeUtils.import("resource://gre/modules/ExtensionCommon.jsm");
-var { ExtensionUtils } = ChromeUtils.import("resource://gre/modules/ExtensionUtils.jsm");
+var { ExtensionUtils: { ExtensionError } } = ChromeUtils.importESModule("resource://gre/modules/ExtensionUtils.sys.mjs");
 
-var { promiseEvent } = ExtensionUtils;
-var { makeWidgetId, ExtensionAPI } = ExtensionCommon;
+var { ExtensionSupport } = ChromeUtils.importESModule("resource:///modules/ExtensionSupport.sys.mjs");
 
-
-XPCOMUtils.defineLazyGetter(this, "standaloneStylesheets", () => {
-  let stylesheets = [];
-  let { AppConstants } = ChromeUtils.import("resource://gre/modules/AppConstants.jsm");
-
-  if (AppConstants.platform === "macosx") {
-    stylesheets.push("chrome://browser/content/extension-mac-panel.css");
-  } else if (AppConstants.platform === "win") {
-    stylesheets.push("chrome://browser/content/extension-win-panel.css");
-  } else if (AppConstants.platform === "linux") {
-    stylesheets.push("chrome://browser/content/extension-linux-panel.css");
-  }
-  return stylesheets;
-});
-
+Cu.importGlobalProperties(["URL"]);
 
 this.calendarItemDetails = class extends ExtensionAPI {
-  async _attachBrowser(tabpanel) {
-    let document = tabpanel.ownerDocument;
-    let browser = document.createXULElement("browser");
-    browser.setAttribute("flex", "1");
-    browser.setAttribute("type", "content");
-    browser.setAttribute("disableglobalhistory", "true");
-    browser.setAttribute("messagemanagergroup", "webext-browsers");
-    browser.setAttribute("transparent", "true");
-    browser.setAttribute("class", "webextension-popup-browser");
-    browser.setAttribute("webextension-view-type", "subview");
-
-    // Ensure the browser will initially load in the same group as other browsers from the same
-    // extension.
-    browser.setAttribute(
-      "initialBrowsingContextGroupId",
-      this.extension.policy.browsingContextGroupId
+  onLoadCalendarItemPanel(window, origLoadCalendarItemPanel, iframeId, url) {
+    const uuid = this.extension.uuid;
+    const root = `experiments-calendar-${uuid}`;
+    const query = this.extension.manifest.version;
+    const { setupE10sBrowser } = ChromeUtils.importESModule(
+      `resource://${root}/experiments/calendar/ext-calendar-utils.sys.mjs?${query}`
     );
 
-    if (this.extension.remote) {
-      browser.setAttribute("remote", "true");
-      browser.setAttribute("remoteType", this.extension.remoteType);
-      browser.setAttribute("maychangeremoteness", "true");
+    const res = origLoadCalendarItemPanel(iframeId, url);
+    if (!this.extension.manifest.calendar_item_details) {
+      return res;
     }
-
-    let readyPromise;
-    if (this.extension.remote) {
-      readyPromise = promiseEvent(browser, "XULFrameLoaderCreated");
+    let panelFrame;
+    if (window.tabmail) {
+      panelFrame = window.document.getElementById(iframeId || window.tabmail.currentTabInfo.iframe?.id);
     } else {
-      readyPromise = promiseEvent(browser, "load");
+      panelFrame = window.document.getElementById("calendar-item-panel-iframe");
     }
 
-    tabpanel.appendChild(browser);
+    panelFrame.contentWindow.addEventListener("load", (event) => {
+      const document = event.target.ownerGlobal.document;
 
-    if (!this.extension.remote) {
-      // FIXME: bug 1494029 - this code used to rely on the browser binding
-      // accessing browser.contentWindow. This is a stopgap to continue doing
-      // that, but we should get rid of it in the long term.
-      browser.contentwindow; // eslint-disable-line no-unused-expressions
-    }
+      let areas = this.extension.manifest.calendar_item_details.allowed_areas || ["secondary"];
+      if (!Array.isArray(areas)) {
+        areas = [areas];
+      }
 
-    let sheets = [];
-    if (this.extension.manifest.calendar_item_details.browser_style) {
-      sheets.push(...ExtensionParent.extensionStylesheets);
-    }
-    sheets.push(...standaloneStylesheets);
+      if (areas.includes("secondary")) {
+        const widgetId = makeWidgetId(this.extension.id);
 
-
-    const initBrowser = () => {
-      ExtensionParent.apiManager.emit("extension-browser-inserted", browser);
-      let mm = browser.messageManager;
-      mm.loadFrameScript(
-        "chrome://extensions/content/ext-browser-content.js",
-        false,
-        true
-      );
-
-      mm.sendAsyncMessage("Extension:InitBrowser", {
-        allowScriptsToClose: true,
-        blockParser: false,
-        maxWidth: 800,
-        maxHeight: 600,
-        stylesheets: sheets
-      });
-    };
-    browser.addEventListener("DidChangeBrowserRemoteness", initBrowser);
-
-    return readyPromise.then(() => {
-      initBrowser();
-      browser.loadURI(this.extension.manifest.calendar_item_details.default_content, { triggeringPrincipal: this.extension.principal });
-    });
-  }
-
-  onLoadCalendarItemPanel(window, origLoadCalendarItemPanel, iframeId, url) {
-    let res = origLoadCalendarItemPanel(iframeId, url);
-    if (this.extension.manifest.calendar_item_details) {
-      let panelFrame = window.document.getElementById(iframeId || "calendar-item-panel-iframe");
-      panelFrame.contentWindow.addEventListener("load", (event) => {
-        let document = event.target.ownerGlobal.document;
-        console.log(this.extension.manifest.calendar_item_details);
-
-        let widgetId = makeWidgetId(this.extension.id);
-
-        let tabs = document.getElementById("event-grid-tabs");
-        let tab = document.createXULElement("tab");
+        const tabs = document.getElementById("event-grid-tabs");
+        const tab = document.createXULElement("tab");
         tabs.appendChild(tab);
         tab.setAttribute("label", this.extension.manifest.calendar_item_details.default_title);
         tab.setAttribute("id", widgetId + "-calendarItemDetails-tab");
         tab.setAttribute("image", this.extension.manifest.calendar_item_details.default_icon);
         tab.querySelector(".tab-icon").style.maxHeight = "19px";
 
-        let tabpanels = document.getElementById("event-grid-tabpanels");
-        let tabpanel = document.createXULElement("tabpanel");
+        const tabpanels = document.getElementById("event-grid-tabpanels");
+        const tabpanel = document.createXULElement("tabpanel");
         tabpanels.appendChild(tabpanel);
         tabpanel.setAttribute("id", widgetId + "-calendarItemDetails-tabpanel");
         tabpanel.setAttribute("flex", "1");
 
-        this._attachBrowser(tabpanel);
-      });
-    }
+        const browser = document.createXULElement("browser");
+        browser.setAttribute("flex", "1");
+
+        const options = { maxWidth: null, fixedWidth: true };
+        setupE10sBrowser(this.extension, browser, tabpanel, options).then(() => {
+          const target = new URL(this.extension.manifest.calendar_item_details.default_content);
+          target.searchParams.set("area", "secondary");
+          browser.fixupAndLoadURIString(target.href, { triggeringPrincipal: this.extension.principal });
+        });
+      } else if (areas.includes("inline")) {
+        const tabbox = document.getElementById("event-grid");
+
+        const browserRow = tabbox.appendChild(document.createElementNS("http://www.w3.org/1999/xhtml", "tr"));
+        const browserCell = browserRow.appendChild(document.createElementNS("http://www.w3.org/1999/xhtml", "td"));
+        browserRow.className = "event-grid-link-row";
+        browserCell.setAttribute("colspan", "2");
+
+        const separator = tabbox.appendChild(document.createElementNS("http://www.w3.org/1999/xhtml", "tr"));
+        separator.className = "separator";
+        const separatorCell = separator.appendChild(document.createElementNS("http://www.w3.org/1999/xhtml", "td"));
+        separatorCell.setAttribute("colspan", "2");
+
+        const browser = document.createXULElement("browser");
+        browser.setAttribute("flex", "1");
+
+        // TODO The real version will need a max-height and auto-resizing
+        browser.style.height = "200px";
+        browser.style.width = "100%";
+        browser.style.display = "block";
+
+        // Fix an annoying bug, this should be part of a different patch
+        document.getElementById("url-link").style.maxWidth = "42em";
+
+        const options = { maxWidth: null, fixedWidth: true };
+        setupE10sBrowser(this.extension, browser, browserCell, options).then(() => {
+          const target = new URL(this.extension.manifest.calendar_item_details.default_content);
+          target.searchParams.set("area", "inline");
+          browser.fixupAndLoadURIString(target.href, { triggeringPrincipal: this.extension.principal });
+        });
+      }
+    });
 
     return res;
   }
 
+  onLoadSummary(window) {
+    const uuid = this.extension.uuid;
+    const root = `experiments-calendar-${uuid}`;
+    const query = this.extension.manifest.version;
+    const { setupE10sBrowser } = ChromeUtils.importESModule(
+      `resource://${root}/experiments/calendar/ext-calendar-utils.sys.mjs?${query}`
+    );
+
+    const document = window.document;
+
+    // Fix an annoying bug, this should be part of a different patch
+    document.querySelector(".url-link").style.maxWidth = "42em";
+
+    let areas = this.extension.manifest.calendar_item_details.allowed_areas || ["secondary"];
+    if (!Array.isArray(areas)) {
+      areas = [areas];
+    }
+
+
+    if (areas.includes("summary")) {
+      const summaryBox = document.querySelector(".item-summary-box");
+
+      const browser = document.createXULElement("browser");
+      browser.id = "ext-calendar-item-details-" + this.extension.id;
+      browser.style.minHeight = "150px";
+      document.getElementById(browser.id)?.remove();
+
+      const separator = document.createXULElement("separator");
+      separator.id = "ext-calendar-item-details-separator-" + this.extension.id;
+      separator.className = "groove";
+
+      document.getElementById(separator.id)?.remove();
+      summaryBox.appendChild(separator);
+
+      const options = { maxWidth: null, fixedWidth: true };
+      setupE10sBrowser(this.extension, browser, summaryBox, options).then(() => {
+        const target = new URL(this.extension.manifest.calendar_item_details.default_content);
+        target.searchParams.set("area", "summary");
+        browser.fixupAndLoadURIString(target.href, { triggeringPrincipal: this.extension.principal });
+      });
+    }
+  }
+
   onStartup() {
-    let calendarItemDetails = this.extension.manifest?.calendar_item_details;
+    const calendarItemDetails = this.extension.manifest?.calendar_item_details;
     if (calendarItemDetails) {
-      let localize = this.extension.localize.bind(this.extension);
+      const localize = this.extension.localize.bind(this.extension);
 
       if (calendarItemDetails.default_icon) {
         calendarItemDetails.default_icon = this.extension.getURL(localize(calendarItemDetails.default_icon));
@@ -150,23 +158,53 @@ this.calendarItemDetails = class extends ExtensionAPI {
       if (calendarItemDetails.default_title) {
         calendarItemDetails.default_title = localize(calendarItemDetails.default_title);
       }
-    }
 
-    ExtensionSupport.registerWindowListener("ext-calendarItemDetails-" + this.extension.id, {
+      const areas = calendarItemDetails.allowed_areas;
+      if (Array.isArray(areas) && areas.includes("inline") && areas.includes("secondary")) {
+        throw new ExtensionError("Cannot show calendar_item_details both inline and secondary");
+      }
+    }
+    ExtensionSupport.registerWindowListener("ext-calendarItemDetails-summary-" + this.extension.id, {
+      chromeURLs: [
+        "chrome://calendar/content/calendar-summary-dialog.xhtml"
+      ],
+      onLoadWindow: (window) => {
+        this.onLoadSummary(window);
+      }
+    });
+
+    ExtensionSupport.registerWindowListener("ext-calendarItemDetails-event-" + this.extension.id, {
       chromeURLs: [
         "chrome://messenger/content/messenger.xhtml",
         "chrome://calendar/content/calendar-event-dialog.xhtml"
       ],
       onLoadWindow: (window) => {
-        let orig = window.onLoadCalendarItemPanel;
-        window.onLoadCalendarItemPanel = this.onLoadCalendarItemPanel.bind(this, window, orig.bind(window));
+        if (window.location.href == "chrome://messenger/content/messenger.xhtml") {
+          const orig = window.onLoadCalendarItemPanel;
+          window.onLoadCalendarItemPanel = this.onLoadCalendarItemPanel.bind(this, window, orig.bind(window));
+          window._onLoadCalendarItemPanelOrig = orig;
+        } else {
+          window.setTimeout(() => {
+            this.onLoadCalendarItemPanel(window, () => {});
+          }, 0);
+        }
       }
     });
   }
   onShutdown() {
-    ExtensionSupport.unregisterWindowListener("ext-calendarItemDetails-" + this.extension.id);
+    ExtensionSupport.unregisterWindowListener("ext-calendarItemDetails-event-" + this.extension.id);
+    ExtensionSupport.unregisterWindowListener("ext-calendarItemDetails-summary-" + this.extension.id);
+
+    for (const wnd of ExtensionSupport.openWindows) {
+      if (wnd.location.href == "chrome://messenger/content/messenger.xhtml") {
+        if (wnd._onLoadCalendarItemPanelOrig) {
+          wnd.onLoadCalendarItemPanel = wnd._onLoadCalendarItemPanelOrig;
+          wnd._onLoadCalendarItemPanelOrig = null;
+        }
+      }
+    }
   }
-  getAPI(context) {
+  getAPI(_context) {
     return { calendar: { itemDetails: {} } };
   }
 };

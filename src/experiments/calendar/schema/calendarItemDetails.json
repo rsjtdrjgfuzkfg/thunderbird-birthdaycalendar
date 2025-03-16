@@ -39,6 +39,17 @@
                 "optional": true,
                 "description": "Enable browser styles. See the `MDN documentation on browser styles <https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/user_interface/Browser_styles>`__ for more information.",
                 "default": false
+              },
+              "allowed_areas": {
+                "optional": true,
+                "default": "secondary",
+                "choices": [
+                  { "$ref": "CalendarItemDetailsArea" },
+                  {
+                    "type": "array",
+                    "items": { "$ref": "CalendarItemDetailsArea" }
+                  }
+                ]
               }
             },
             "optional": true
@@ -49,9 +60,15 @@
   },
   {
     "namespace": "calendarItemDetails",
-    "description": "TODO",
     "permissions": ["manifest:calendar_item_details"],
-    "types": [],
+    "types": [
+      {
+        "id": "CalendarItemDetailsArea",
+        "description": "Describes the area(s) where the item details should be displayed",
+        "type": "string",
+        "enum": ["secondary", "inline", "summary"]
+      }
+    ],
     "functions": [],
     "events": []
   }
