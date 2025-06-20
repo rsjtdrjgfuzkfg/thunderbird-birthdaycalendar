@@ -1,0 +1,80 @@
+{
+  "extensionName": {
+    "message": "Calendario dei compleanni",
+    "description": "Main add-on title"
+  },
+  "extensionDescription": {
+    "message": "Aggiunge un calendario che contiene i compleanni dei contatti presenti nelle rubriche.",
+    "description": "Main add-on description"
+  },
+  "defaultCalendarName": {
+    "message": "Compleanni di $addressbook$",
+    "description": "Nome predefinito per i calendari dei compleanni",
+    "placeholders": {
+      "addressbook": {
+        "content": "$1",
+        "example": "Rubrica personale"
+      }
+    }
+  },
+  "addressBookSelection": {
+    "message": "Selezione delle rubriche di cui mostrare il calendario dei compleanni:",
+    "description": "Label above the list of address books in the preferences"
+  },
+  "ageCalculationRangeSetting1": {
+    "message": "Calcolare l'intervallo di età entro cui operare:",
+    "description": "Label for the setting controlling the range to generate age information for, rendered before the editable field.",
+    "placeholders": {
+      "range": {
+        "content": "$1",
+        "example": "2020 - 2024"
+      }
+    }
+  },
+  "ageCalculationRangeSetting2": {
+    "message": " anno(i): $range$",
+    "description": "Label for the setting controlling the range to generate age information for, rendered after the editable field.",
+    "placeholders": {
+      "range": {
+        "content": "$1",
+        "example": "2020 - 2024"
+      }
+    }
+  },
+  "ageCalculationRange": {
+    "message": "$firstYear$ - $lastYear$",
+    "description": "Text representing the range in which age calculation takes place, if longer than one year",
+    "placeholders": {
+      "firstYear": {
+        "content": "$1",
+        "example": "2020"
+      },
+      "lastYear": {
+        "content": "$2",
+        "example": "2024"
+      }
+    }
+  },
+  "ageCalculationRangeCurrentYear": {
+    "message": "solo per il $year$",
+    "description": "Text representing the range in which age calculation takes place, if only a single year",
+    "placeholders": {
+      "year": {
+        "content": "$1",
+        "example": "2022"
+      }
+    }
+  },
+  "ageCalculationRangeNone": {
+    "message": "nessun calcolodi età",
+    "description": "Text representing the range in which age calculation takes place, if age calculation is disabled"
+  },
+  "ageCutoffYear1": {
+    "message": "Ignora gli anni di nascita fino a ",
+    "description": "Label for the latest birthyear to ignore when doing age calculations, rendered before the editable field."
+  },
+  "ageCutoffYear2": {
+    "message": " ",
+    "description": "Label for the latest birthyear to ignore when doing age calculations, rendered after the editable field."
+  }
+}
