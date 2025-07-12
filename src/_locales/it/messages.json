@@ -22,7 +22,7 @@
     "description": "Label above the list of address books in the preferences"
   },
   "ageCalculationRangeSetting1": {
-    "message": "Calcolare l'intervallo di et‡ entro cui operare:",
+    "message": "Calcolare l'intervallo di et√† entro cui operare:",
     "description": "Label for the setting controlling the range to generate age information for, rendered before the editable field.",
     "placeholders": {
       "range": {
@@ -66,7 +66,7 @@
     }
   },
   "ageCalculationRangeNone": {
-    "message": "nessun calcolodi et‡",
+    "message": "nessun calcolodi et√†",
     "description": "Text representing the range in which age calculation takes place, if age calculation is disabled"
   },
   "ageCutoffYear1": {
