@@ -109,6 +109,63 @@ addEventListener('load', () => (async () => {
 
   abList = document.createElement("div");
   document.body.appendChild(abList);
+  
+  // Reminder section
+  // Add a separator line and label for reminder selection
+  document.body.appendChild(document.createElement("hr"));
+  const remListLabel = document.createElement("p");
+  remListLabel.textContent = Mi.getMessage("ReminderSelection") || "Reminder selection:";
+  document.body.appendChild(remListLabel);
+  
+  // Container for the reminder checkboxes
+  const remList = document.createElement("div");
+  document.body.appendChild(remList);
+  
+  // Define your three distinct reminder options with keys and labels
+  const reminderOptions = [
+    { key: "reminderMinus1Week",   label: "Reminder at 7:00 AM, 1 week before" },
+    { key: "reminderMinus6Hours",  label: "Reminder at 6:00 PM the day before (−6 hours)" },
+    { key: "reminderPlus7Hours",   label: "Reminder at 7:00 AM on the day (+7 hours)" },
+    { key: "reminderPlus18Hours",  label: "Reminder at 6:00 PM on the day (+18 hours)" },
+  ]; // if this list is changed you need to change:
+  //         - BC.getGlobalSettings = async function()  in common.js 
+  //         - buildRemindersAlarms in provider.js
+  
+  for (const option of reminderOptions) {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+  
+    // Initialize state from settings, default false
+    checkbox.checked = !!settings[option.key];
+  
+    // Store setting key to use in event handler
+    checkbox.dataset.settingKey = option.key;
+  
+    // Accessibility: link label with checkbox
+    const checkboxId = `checkbox_${option.key}`;
+    checkbox.id = checkboxId;
+    label.htmlFor = checkboxId;
+  
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(" " + option.label));
+    remList.appendChild(label);
+  
+    // Save setting on checkbox toggle
+	checkbox.addEventListener("click", async () => {
+      try {
+        settings[checkbox.dataset.settingKey] = checkbox.checked;
+        await BC.setGlobalSettings(settings);
+        //console.log("Settings saved:", settings);
+        // we need to sync the calendars
+        await Mc.calendars.synchronize();
+      } catch (e) {
+        console.error("Error saving settings:", e);
+      }
+    });
+  }
+
+  // end of Reminder section
 
   Mc.calendars.onRemoved.addListener(refreshAbList);
   Mc.calendars.onCreated.addListener(refreshAbList);

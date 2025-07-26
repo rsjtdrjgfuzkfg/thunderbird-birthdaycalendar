@@ -69,12 +69,16 @@ const BC = {};
 
 
   // Settings
-  BC.getGlobalSettings = async function() {
+BC.getGlobalSettings = async function() {
     return await Msl.get({
-      yearsToDisplayAgeFor: 2,
-      ageCutoffYear: null
+        yearsToDisplayAgeFor: 2,
+        ageCutoffYear: null,
+        reminderMinus1Week: false,
+        reminderMinus6Hours: false,
+        reminderPlus7Hours: false,
+        reminderPlus18Hours: false
     });
-  };
+};
 
   BC.setGlobalSettings = async function(settings) {
     await Msl.set(settings);
