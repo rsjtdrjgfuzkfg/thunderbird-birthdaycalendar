@@ -1,6 +1,34 @@
 // This file contains the calendar provider implementation only; loaded into the
 // background page.
 
+//start of crc
+function makeCRCTable() {
+  let c;
+  let crcTable = [];
+  for (let n = 0; n < 256; n++) {
+    c = n;
+    for (let k = 0; k < 8; k++) {
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    crcTable[n] = c;
+  }
+  return crcTable;
+}
+// create table only once while loading
+const crcTable = makeCRCTable();
+// CRC32 calculation
+function crc32(str) {
+  let crc = 0 ^ (-1);
+  for (let i = 0; i < str.length; i++) {
+    crc = (crc >>> 8) ^ crcTable[(crc ^ str.charCodeAt(i)) & 0xFF];
+  }
+  return (crc ^ (-1)) >>> 0;
+}
+function getCRC_8hex(str) {// 8 hex digits form string
+  return crc32(str).toString(16).toUpperCase().padStart(8, '0');
+}
+//end of crc
+
 Mc.provider.onSync.addListener(async (cal) => {
   let ab = null; // the (complete) address book associated with the calendar
   let errorCount = 0;
@@ -41,15 +69,22 @@ Mc.provider.onSync.addListener(async (cal) => {
   const dtStamp = "DTSTAMP:" + icalUTZTime(now) + "\n";
 
   const settings = await BC.getGlobalSettings();
-  const ageStartYear = now.getFullYear() - Math.max(
-      settings.yearsToDisplayAgeFor - 1, 0);
+  const ageStartYear = now.getFullYear() - Math.max(settings.yearsToDisplayAgeFor - 1, 0);
   const ageEndYear = now.getFullYear() + settings.yearsToDisplayAgeFor;
 
-  await Mc.calendars.clear(cal.cacheId);
-  for (let contact of ab.contacts) {
+  
+  // get all the existing calendar entries before script starts
+  let existing_events = await messenger.calendar.items.query({
+  calendarId: cal.id,
+  type: "event" 
+  });
+  //to do - today it seems the only information we do get from calendar events is the id
+  //due to this we can not update events but use a crc to delete and recreate in case of a data changed.
+  
+  for (let contact of ab.contacts) { // iterate all contacts
     let bDay = null;
     let bMonth = null;
-    let bYear = null;
+    let bYear = null; //b means the actual birth year
     if (contact.properties.hasOwnProperty("vCard")) {
       // Thunderbird 102+ introduced raw vCard access and deprecated the use
       // of Birth* properties. We thus prefer vCard if present, though we only
@@ -87,21 +122,21 @@ Mc.provider.onSync.addListener(async (cal) => {
     const name = contact.properties.DisplayName || joinNameParts(
         contact.properties.FirstName, contact.properties.LastName)
         || contact.properties.PrimaryEmail || contact.id;
-
-    let years; // array with all years that get an event for this birthday
+	let years; // array with all years that get an event for this birthday
     if (bYear) {
       years = [bYear];
-      for (let year = Math.max(ageStartYear, bYear + 1); year < ageEndYear;
-          ++year) {
+      for (let year = Math.max(ageStartYear, bYear + 1); year < ageEndYear; ++year) {
         years.push(year);
       }
     } else {
       // If we do not know a birth year, we will assume 1972, as that is the
       // first leap year of the unix epoch (we need a leap year in order to
       // correctly process birthdays on 29th of February).
+	  // and as we do not know the birth year we do not calculate the age
       years = [1972];
     }
 
+	
     for (let year of years) {
       let instanceDate = new Date(year, bMonth - 1, bDay);
       if (instanceDate < 100) { // unlikely, but just in case...
@@ -110,22 +145,22 @@ Mc.provider.onSync.addListener(async (cal) => {
 
       let ical = "BEGIN:VCALENDAR\nVersion:2.0\n";
       ical += "BEGIN:VEVENT\n";
-      ical += "UID:" + icalStrip(contact.id) + "-" + year + "\n" + dtStamp;
+      ical += dtStamp;
 
-      ical += "SUMMARY:" + icalStrip(name);
+      let ical_data = "SUMMARY:" + icalStrip(name);
       if (year > bYear) {
         // This is an exception to the regular event, containing the exact
         // age for this particular year
-        ical += (bYear ? " (" + (year - bYear) + ")" : "") + "\n";
+        ical_data += (bYear ? " (" + (year - bYear) + ")" : "") + "\n";
         // If we had recurrence exception support, we'd also add
         // "RECURRENCE-ID;VALUE=DATE:" + icalDate(instanceDate) + "\n"
       } else {
         // This is the main event with the recurrence rule. Contains the birth
-        // year iff it is set and we do not display ages anywhere
-        if (!settings.yearsToDisplayAgeFor && bYear) {
-          ical += " (" + bYear + ")";
+        // year if it is set and we do not display ages anywhere
+        if (!settings.yearsToDisplayAgeFor && bYear) { // in case the age is not calculated at all the regular event will show the birth year if set.
+          ical_data += " (" + bYear + ")";
         }
-        ical += "\nRRULE:FREQ=YEARLY\n";
+        ical_data += "\nRRULE:FREQ=YEARLY\n";
         // As we don't have real recurrence exceptions, we need to explicitly
         // exclude all dates with 'exceptions' in the main event:
         if (years.length > 1) {
@@ -133,24 +168,50 @@ Mc.provider.onSync.addListener(async (cal) => {
             if (exYear === year) {
               continue;
             }
-            ical += "EXDATE;VALUE=DATE:" + icalDate(new Date(exYear, bMonth - 1,
+            ical_data += "EXDATE;VALUE=DATE:" + icalDate(new Date(exYear, bMonth - 1,
                 bDay)) + "\n";
           }
         }
       }
 
-      ical += "DTSTART;VALUE=DATE:" + icalDate(instanceDate) + "\n";
+      ical_data += "DTSTART;VALUE=DATE:" + icalDate(instanceDate) + "\n";
       instanceDate.setDate(instanceDate.getDate() + 1);
-      ical += "DTEND;VALUE=DATE:" + icalDate(instanceDate) + "\n";
-      ical += "TRANSP:TRANSPARENT\n";
-
+      ical_data += "DTEND;VALUE=DATE:" + icalDate(instanceDate) + "\n";
+      
+	  //calculate a crc from data and add it to the UID
+	  //a change in data will change the UID and therefor trigger a recreation of the event.
+	  let ical_data_crc = getCRC_8hex(ical_data); // 8 digit hex crc32
+	  let ical_id =  icalStrip(contact.id) + "-" + year + "-" + ical_data_crc  ;
+	  ical += "UID:" + ical_id + "\n";
+	  ical+= ical_data;
+	  
+	  ical += "TRANSP:TRANSPARENT\n";
       ical += "END:VEVENT\n";
       ical += "END:VCALENDAR\n";
-      await Mc.items.create(cal.cacheId, {
-        type: "event",
-        format: "ical",
-        item: ical
-      });
+	  
+	  
+	  // Check if ical_id exists in existing_events
+      const existingIndex = existing_events.findIndex(g_event => g_event.id === ical_id);
+      
+      if (existingIndex !== -1) {
+        // Event already exists -> remove it from the list
+		existing_events.splice(existingIndex, 1);
+      } else {
+        // Event does not exist -> create a new event
+		await Mc.items.create(cal.cacheId, {
+          type: "event",
+          format: "ical",
+          item: ical
+        });
+      }
     }
   }
+  
+  // now we processed all contacts, created new events, and removed already existing from existing_events
+  // in the existing_events we do have events we do not need anymore.
+  for (let g_event of existing_events) {
+    // Delete the event by id
+    await Mc.items.remove(cal.cacheId, g_event.id);
+  }
+  
 });

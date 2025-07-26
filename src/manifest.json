@@ -4,7 +4,7 @@
     "gecko": {
       "id": "birthdaycalendar@rsjtdrjgfuzkfg.com",
       "strict_min_version": "128.0",
-      "strict_max_version": "140.*"
+      "strict_max_version": "141.*"
     }
   },
   "name": "__MSG_extensionName__",
