@@ -29,6 +29,58 @@ function getCRC_8hex(str) {// 8 hex digits form string
 }
 //end of crc
 
+// helper to create Alarms
+function buildRemindersAlarms(settings, safeName) {
+  const alarms = [];
+	
+	//console.log("buildRemindersAlarms " +safeName)
+
+  if (settings.reminderMinus1Week) {
+    alarms.push(
+      "BEGIN:VALARM",
+      "TRIGGER:-PT161H", // // 1 week before, at 07:00 AM - Remark: -P1W+PT7H is 175h after the event 
+      `DESCRIPTION:Reminder - Next week: ${safeName}`,
+      "ACTION:DISPLAY",
+      "END:VALARM"
+    );
+  }
+
+  if (settings.reminderMinus6Hours) {
+    alarms.push(
+      "BEGIN:VALARM",
+      "TRIGGER:-PT6H", // 6 hours before means 18:00 on the previous day
+      `DESCRIPTION:Reminder - Tomorrow: ${safeName}`,
+      "ACTION:DISPLAY",
+      "END:VALARM"
+    );
+  }
+
+  if (settings.reminderPlus7Hours) {
+    alarms.push(
+      "BEGIN:VALARM",
+      "TRIGGER:PT7H", // 7 hours after event start (today morning + 7h)
+      `DESCRIPTION:Reminder - Today: ${safeName}`,
+      "ACTION:DISPLAY",
+      "END:VALARM"
+    );
+  }
+
+  if (settings.reminderPlus18Hours) {
+    alarms.push(
+      "BEGIN:VALARM",
+      "TRIGGER:PT18H",
+      `DESCRIPTION:Reminder - Today: ${safeName}`,
+      "ACTION:DISPLAY",
+      "END:VALARM"
+    );
+  }
+
+  return alarms.length > 0 ? alarms.join("\n") + "\n" : "";
+}
+
+
+
+
 Mc.provider.onSync.addListener(async (cal) => {
   let ab = null; // the (complete) address book associated with the calendar
   let errorCount = 0;
@@ -177,6 +229,10 @@ Mc.provider.onSync.addListener(async (cal) => {
       ical_data += "DTSTART;VALUE=DATE:" + icalDate(instanceDate) + "\n";
       instanceDate.setDate(instanceDate.getDate() + 1);
       ical_data += "DTEND;VALUE=DATE:" + icalDate(instanceDate) + "\n";
+	  
+	  // Add reminders (VALARM) here:
+	  const alarms = buildRemindersAlarms(settings, icalStrip(name));
+      ical_data += alarms;
       
 	  //calculate a crc from data and add it to the UID
 	  //a change in data will change the UID and therefor trigger a recreation of the event.
@@ -195,9 +251,11 @@ Mc.provider.onSync.addListener(async (cal) => {
       
       if (existingIndex !== -1) {
         // Event already exists -> remove it from the list
+		//console.log("already exists " + ical_id)
 		existing_events.splice(existingIndex, 1);
       } else {
         // Event does not exist -> create a new event
+		//console.log("create " + ical_id)
 		await Mc.items.create(cal.cacheId, {
           type: "event",
           format: "ical",
