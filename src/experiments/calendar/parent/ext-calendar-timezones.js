@@ -15,15 +15,45 @@ this.calendar_timezones = class extends ExtensionAPI {
             context,
             name: "calendar.timezones.onUpdated",
             register: fire => {
-              cal.timezoneService.wrappedJSObject._updateDefaultTimezone();
-              let lastValue = cal.timezoneService.defaultTimezone?.tzid;
+              const service = cal.timezoneService;
 
-              const observer = {
+              // COMPAT (TB <= 153 only, not needed on release): On TB <= 153
+              // the service is an XPCOM service and wrappedJSObject reaches
+              // _updateDefaultTimezone(). TB 154 (Bug 2022873) made it a plain
+              // ESM singleton and the method #private, so both are gone there.
+              const isLegacyService = !!service.wrappedJSObject?._updateDefaultTimezone;
+
+              if (!isLegacyService) {
+                // The service announces this once it has applied a new
+                // default, and only when the zone really changed. It is the
+                // single trigger: the prefs and the system timezone topic are
+                // not observed here, because we could run before the service
+                // has reacted to them and read its old default.
+                const announceObserver = {
+                  QueryInterface: ChromeUtils.generateQI(["nsIObserver"]),
+                  observe(_subject, _topic, _data) {
+                    fire.sync(service.defaultTimezone?.tzid);
+                  },
+                };
+                Services.obs.addObserver(announceObserver, "defaultTimezoneChanged");
+                return () => {
+                  Services.obs.removeObserver(announceObserver, "defaultTimezoneChanged");
+                };
+              }
+
+              // COMPAT (TB <= 153 only, not needed on release): Everything
+              // below. On TB <= 153 we have to watch the prefs and the system
+              // timezone ourselves and tell the service to update before we
+              // read its default, and we need lastValue to only report real
+              // changes.
+              service.wrappedJSObject._updateDefaultTimezone();
+              let lastValue = service.defaultTimezone?.tzid;
+
+              const legacyObserver = {
                 QueryInterface: ChromeUtils.generateQI(["nsIObserver"]),
                 observe(_subject, _topic, _data) {
-                  // Make sure the default timezone is updated before firing
-                  cal.timezoneService.wrappedJSObject._updateDefaultTimezone();
-                  const currentValue = cal.timezoneService.defaultTimezone?.tzid;
+                  service.wrappedJSObject._updateDefaultTimezone();
+                  const currentValue = service.defaultTimezone?.tzid;
                   if (currentValue != lastValue) {
                     lastValue = currentValue;
                     fire.sync(currentValue);
@@ -31,13 +61,13 @@ this.calendar_timezones = class extends ExtensionAPI {
                 }
               };
 
-              Services.prefs.addObserver("calendar.timezone.useSystemTimezone", observer);
-              Services.prefs.addObserver("calendar.timezone.local", observer);
-              Services.obs.addObserver(observer, "default-timezone-changed");
+              Services.prefs.addObserver("calendar.timezone.useSystemTimezone", legacyObserver);
+              Services.prefs.addObserver("calendar.timezone.local", legacyObserver);
+              Services.obs.addObserver(legacyObserver, "default-timezone-changed");
               return () => {
-                Services.obs.removeObserver(observer, "default-timezone-changed");
-                Services.prefs.removeObserver("calendar.timezone.local", observer);
-                Services.prefs.removeObserver("calendar.timezone.useSystemTimezone", observer);
+                Services.obs.removeObserver(legacyObserver, "default-timezone-changed");
+                Services.prefs.removeObserver("calendar.timezone.local", legacyObserver);
+                Services.prefs.removeObserver("calendar.timezone.useSystemTimezone", legacyObserver);
               };
             },
           }).api(),

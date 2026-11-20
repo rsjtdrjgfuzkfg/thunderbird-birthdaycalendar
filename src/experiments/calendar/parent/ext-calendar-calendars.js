@@ -14,10 +14,10 @@ this.calendar_calendars = class extends ExtensionAPI {
     const query = context.extension.manifest.version;
     const {
       createCalendarObserver,
-      unwrapCalendar,
       getResolvedCalendarById,
       isOwnCalendar,
       convertCalendar,
+      mergeCapabilities,
     } = ChromeUtils.importESModule(
       `resource://${root}/experiments/calendar/ext-calendar-utils.sys.mjs?${query}`
     );
@@ -66,7 +66,7 @@ this.calendar_calendars = class extends ExtensionAPI {
                   matches = false;
                 }
 
-                if (readOnly != null && calendar.readOnly != readOnly) {
+                if (readOnly != null && !!calendar.readOnly != readOnly) {
                   matches = false;
                 }
 
@@ -75,10 +75,13 @@ this.calendar_calendars = class extends ExtensionAPI {
               .map(calendar => convertCalendar(context.extension, calendar));
           },
           async get(id) {
+            // The cache calendar is internal. Converting it would hand out the
+            // path of the cache file in the user's profile, so it is not
+            // available. Answer like the other calendar functions do for an id
+            // they cannot resolve. The cache id still works with the items
+            // functions and calendars.clear.
             if (id.endsWith("#cache")) {
-              const calendar = unwrapCalendar(cal.manager.getCalendarById(id.substring(0, id.length - 6)));
-              const own = calendar.offlineStorage && isOwnCalendar(calendar, context.extension);
-              return own ? convertCalendar(context.extension, calendar.offlineStorage) : null;
+              throw new ExtensionError(`Invalid calendar id: ${id}`);
             }
             const calendar = cal.manager.getCalendarById(id);
             return convertCalendar(context.extension, calendar);
@@ -90,6 +93,15 @@ this.calendar_calendars = class extends ExtensionAPI {
             );
             if (!calendar) {
               throw new ExtensionError(`Calendar type ${createProperties.type} is unknown`);
+            }
+
+            // Rejected before anything is applied or registered, so a refused
+            // call leaves nothing behind. A calendar that cannot refresh must
+            // never carry an interval, not even 0.
+            if (createProperties.refreshInterval != null && !calendar.canRefresh) {
+              throw new ExtensionError(
+                `Cannot set refreshInterval on a ${createProperties.type} calendar: it cannot refresh`
+              );
             }
 
             calendar.name = createProperties.name;
@@ -108,6 +120,13 @@ this.calendar_calendars = class extends ExtensionAPI {
             }
             if (createProperties.showReminders != null) {
               calendar.setProperty("suppressAlarms", !createProperties.showReminders);
+            }
+            // Set before registerCalendar below, which is what arms the host's
+            // refresh timer. Passing 0 here means a provider that runs its own
+            // schedule never gets a host timer at all, rather than having to
+            // race one that has already started.
+            if (createProperties.refreshInterval != null) {
+              calendar.setProperty("refreshInterval", createProperties.refreshInterval);
             }
             if (createProperties.capabilities != null) {
               if (!isOwnCalendar(calendar, context.extension)) {
@@ -134,6 +153,14 @@ this.calendar_calendars = class extends ExtensionAPI {
             if (updateProperties.url && !isOwnCalendar(calendar, context.extension)) {
               throw new ExtensionError("Cannot update url for foreign calendars");
             }
+            // A calendar that cannot refresh must never carry an interval, not
+            // even 0. Checked here with the other preconditions, so a refused
+            // update applies none of its other properties either.
+            if (updateProperties.refreshInterval != null && !calendar.canRefresh) {
+              throw new ExtensionError(
+                `Cannot set refreshInterval on calendar ${id}: it cannot refresh`
+              );
+            }
 
             if (updateProperties.url) {
               calendar.uri = Services.io.newURI(updateProperties.url);
@@ -157,8 +184,15 @@ this.calendar_calendars = class extends ExtensionAPI {
               }
             }
 
+            // Minutes between automatic refreshes, 0 meaning "do not refresh".
+            // Nothing else to do: CalCalendarManager observes this property and
+            // re-arms the calendar's refresh timer from onPropertyChanged, so
+            // the new interval takes effect immediately.
+            if (updateProperties.refreshInterval != null) {
+              calendar.setProperty("refreshInterval", updateProperties.refreshInterval);
+            }
+
             if (updateProperties.capabilities) {
-              // TODO validate capability names
               const unwrappedCalendar = calendar.wrappedJSObject.mUncachedCalendar.wrappedJSObject;
               let overrideCapabilities;
               try {
@@ -166,13 +200,11 @@ this.calendar_calendars = class extends ExtensionAPI {
               } catch(e) {
                 overrideCapabilities = {};
               }
-              for (const [key, value] of Object.entries(updateProperties.capabilities)) {
-                if (value === null) {
-                  continue;
-                }
-                unwrappedCalendar.capabilities[key] = value;
-                overrideCapabilities[key] = value;
-              }
+
+              // Only what was passed changes, the omitted capabilities keep their value
+              const changes = updateProperties.capabilities;
+              unwrappedCalendar.capabilities = mergeCapabilities(unwrappedCalendar.capabilities, changes);
+              overrideCapabilities = mergeCapabilities(overrideCapabilities, changes);
 
               calendar.setProperty("overrideCapabilities", JSON.stringify(overrideCapabilities));
             }
@@ -207,20 +239,25 @@ this.calendar_calendars = class extends ExtensionAPI {
               throw new ExtensionError("Cannot clear foreign calendar");
             }
 
-            await new Promise((resolve, reject) => {
-              const listener = {
-                onDeleteCalendar(aCalendar, aStatus, aDetail) {
-                  if (Components.isSuccessCode(aStatus)) {
-                    resolve();
-                  } else {
-                    reject(aDetail);
-                  }
-                },
-              };
-              offlineStorage
-                .QueryInterface(Ci.calICalendarProvider)
-                .deleteCalendar(offlineStorage, listener);
-            });
+            // COMPAT (TB <= 153 only, not needed on release): Up to TB 153
+            // deleteCalendar() takes a listener and reports through it. Newer
+            // versions (Bug 2061621) have no listener and return a promise
+            // instead, so the listener below is never called there. Wait for
+            // whichever one the host provides.
+            const { promise: listenerPromise, resolve, reject } = Promise.withResolvers();
+            const listener = {
+              onDeleteCalendar(aCalendar, aStatus, aDetail) {
+                if (Components.isSuccessCode(aStatus)) {
+                  resolve();
+                } else {
+                  reject(aDetail);
+                }
+              },
+            };
+            const result = offlineStorage
+              .QueryInterface(Ci.calICalendarProvider)
+              .deleteCalendar(offlineStorage, listener);
+            await (typeof result?.then == "function" ? result : listenerPromise);
 
             calendar.wrappedJSObject.mObservers.notify("onLoad", [calendar]);
           },
@@ -282,8 +319,10 @@ this.calendar_calendars = class extends ExtensionAPI {
                   switch (name) {
                     case "name":
                     case "color":
-                    case "readOnly":
                       fire.sync(converted, { [name]: value });
+                      break;
+                    case "readOnly":
+                      fire.sync(converted, { readOnly: !!value });
                       break;
                     case "uri":
                       fire.sync(converted, { url: value?.spec });
@@ -296,6 +335,14 @@ this.calendar_calendars = class extends ExtensionAPI {
                       break;
                     case "disabled":
                       fire.sync(converted, { enabled: !value });
+                      break;
+                    case "refreshInterval":
+                      // Reported from the converted calendar rather than from
+                      // `value`, which the property bag may hand over as a
+                      // string - convertCalendar has already normalised it.
+                      fire.sync(converted, {
+                        refreshInterval: converted.refreshInterval,
+                      });
                       break;
                   }
                 },
